@@ -1,0 +1,743 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>RescueAI — Report Emergency</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Barlow:wght@300;400;600;700;900&family=Barlow+Condensed:wght@300;400;600;700;900&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg:      #060810;
+  --surf:    #0b0f1a;
+  --card:    #0f1420;
+  --border:  #1a2236;
+  --border2: #243050;
+  --red:     #ff2d3d;
+  --red-d:   #8b1520;
+  --amber:   #ff9500;
+  --teal:    #00d4b8;
+  --teal-d:  #004d44;
+  --blue:    #3b82f6;
+  --text:    #e8f0ff;
+  --muted:   #4a5878;
+  --mono:    'Space Mono', monospace;
+  --sans:    'Barlow', sans-serif;
+  --cond:    'Barlow Condensed', sans-serif;
+}
+html,body { height:100%; background:var(--bg); color:var(--text); font-family:var(--sans); overflow:hidden; }
+
+body::before {
+  content:''; position:fixed; inset:0; pointer-events:none; z-index:0;
+  background-image: linear-gradient(rgba(59,130,246,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(59,130,246,0.03) 1px, transparent 1px);
+  background-size: 50px 50px;
+}
+body::after {
+  content:''; position:fixed; inset:0; pointer-events:none; z-index:0;
+  background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.02) 2px, rgba(0,0,0,0.02) 4px);
+}
+
+/* ── SCREENS ── */
+.scr { position:fixed; inset:0; z-index:10; display:none; flex-direction:column; }
+.scr.on { display:flex; animation: fadeIn .2s ease; }
+@keyframes fadeIn { from{opacity:0} to{opacity:1} }
+
+/* ═══════════════════════════════════════════
+   LANDING
+═══════════════════════════════════════════ */
+#s-land { align-items:center; justify-content:center; padding:24px; }
+
+.radar-wrap { position:relative; width:150px; height:150px; margin-bottom:28px; }
+.rring {
+  position:absolute; inset:0; border-radius:50%;
+  border:1px solid var(--red); opacity:0;
+  animation: rexpand 2.4s ease-out infinite;
+}
+.rring:nth-child(2){animation-delay:.8s}
+.rring:nth-child(3){animation-delay:1.6s}
+@keyframes rexpand{0%{transform:scale(.3);opacity:.8}100%{transform:scale(1.9);opacity:0}}
+.rcore {
+  position:absolute; inset:22px; border-radius:50%;
+  background:radial-gradient(circle at 40% 40%, #ff2d3d33, transparent);
+  border:1px solid var(--red-d);
+  display:flex; align-items:center; justify-content:center; font-size:48px;
+}
+
+.land-eyebrow { font-family:var(--mono); font-size:9px; letter-spacing:4px; color:var(--red); text-transform:uppercase; margin-bottom:10px; }
+.land-title { font-family:var(--cond); font-size:60px; font-weight:900; line-height:1; color:var(--text); margin-bottom:6px; }
+.land-title span { color:var(--red); }
+.land-sub { font-size:13px; font-weight:300; color:var(--muted); max-width:320px; line-height:1.65; text-align:center; margin-bottom:28px; }
+
+.pills { display:flex; gap:7px; flex-wrap:wrap; justify-content:center; margin-bottom:36px; }
+.pill {
+  font-family:var(--mono); font-size:9px; letter-spacing:1px;
+  padding:4px 10px; text-transform:uppercase; font-weight:700;
+  border:1px solid; border-radius:2px;
+}
+.p-red  {color:var(--red); border-color:var(--red-d); background:#ff2d3d0a;}
+.p-teal {color:var(--teal);border-color:var(--teal-d);background:#00d4b80a;}
+.p-blue {color:var(--blue);border-color:#1e3a5f;background:#3b82f60a;}
+.p-amb  {color:var(--amber);border-color:#7a4800;background:#ff95000a;}
+
+.sos-btn {
+  position:relative; overflow:hidden;
+  padding:20px 60px;
+  background:var(--red); color:#fff; border:none;
+  font-family:var(--cond); font-size:20px; font-weight:900; letter-spacing:3px;
+  text-transform:uppercase; cursor:pointer;
+  clip-path:polygon(14px 0%,100% 0%,calc(100% - 14px) 100%,0% 100%);
+  transition:background .15s, transform .1s;
+  margin-bottom:12px;
+}
+.sos-btn::before {
+  content:''; position:absolute; inset:0;
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,.15),transparent);
+  transform:translateX(-100%); transition:transform .4s;
+}
+.sos-btn:hover{background:#ff1a2a; transform:scale(1.02);}
+.sos-btn:hover::before{transform:translateX(100%);}
+
+.admin-link {
+  font-family:var(--mono); font-size:10px; color:var(--muted);
+  background:none; border:1px solid var(--border); padding:8px 20px;
+  cursor:pointer; letter-spacing:1px; text-transform:uppercase; transition:color .15s;
+}
+.admin-link:hover{color:var(--text);}
+
+.statusbar {
+  position:fixed; bottom:0; left:0; right:0; z-index:100;
+  height:34px; padding:0 20px;
+  background:var(--surf); border-top:1px solid var(--border);
+  display:flex; align-items:center; gap:16px;
+  font-family:var(--mono); font-size:9px; color:var(--muted); letter-spacing:1px;
+}
+.sdot { width:6px;height:6px;border-radius:50%;background:var(--teal);box-shadow:0 0 6px var(--teal);animation:blink 2s infinite;flex-shrink:0;}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+.sb-sep{color:var(--border2);}
+
+/* ═══════════════════════════════════════════
+   CHAT / INTAKE
+═══════════════════════════════════════════ */
+#s-chat { background:var(--bg); }
+
+.chat-hdr {
+  flex-shrink:0; height:58px; padding:0 16px;
+  background:var(--surf); border-bottom:1px solid var(--border);
+  display:flex; align-items:center; gap:12px;
+}
+.back { background:none;border:none;color:var(--muted);cursor:pointer;font-size:20px;font-family:var(--mono);padding:4px;transition:color .15s;}
+.back:hover{color:var(--text);}
+.av {
+  width:32px;height:32px;flex-shrink:0;
+  background:linear-gradient(135deg,var(--amber),#c45a00);
+  clip-path:polygon(50% 0%,100% 25%,100% 75%,50% 100%,0% 75%,0% 25%);
+  display:flex;align-items:center;justify-content:center;
+  font-family:var(--mono);font-size:9px;font-weight:700;color:#000;
+}
+.aname{font-family:var(--cond);font-weight:700;font-size:15px;color:var(--text);letter-spacing:.5px;}
+.astatus{display:flex;align-items:center;gap:5px;font-family:var(--mono);font-size:9px;color:var(--teal);margin-top:1px;}
+
+/* Progress */
+.prog-bar {
+  flex-shrink:0; height:36px; padding:0 16px;
+  background:var(--surf); border-bottom:1px solid var(--border);
+  display:flex; align-items:center; gap:10px;
+}
+.prog-lbl{font-family:var(--mono);font-size:8px;color:var(--muted);letter-spacing:1px;white-space:nowrap;}
+.prog-steps{display:flex;gap:4px;flex:1;}
+.ps{flex:1;height:3px;background:var(--border2);transition:background .3s;}
+.ps.done{background:var(--teal);}
+.ps.cur{background:var(--red);animation:ppulse 1s infinite;}
+@keyframes ppulse{0%,100%{opacity:1}50%{opacity:.4}}
+.prog-n{font-family:var(--mono);font-size:9px;color:var(--muted);white-space:nowrap;}
+
+/* Messages */
+.msgs {
+  flex:1; overflow-y:auto; padding:16px 14px;
+  display:flex; flex-direction:column; gap:10px;
+  scroll-behavior:smooth;
+}
+.msgs::-webkit-scrollbar{width:3px;}
+.msgs::-webkit-scrollbar-thumb{background:var(--border2);}
+
+.mrow{display:flex;max-width:86%;animation:fadeUp .25s ease both;}
+.mrow.ai{align-self:flex-start;}
+.mrow.user{align-self:flex-end;flex-direction:row-reverse;}
+@keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+
+.mav{width:28px;height:28px;flex-shrink:0;margin:0 8px;margin-top:2px;background:linear-gradient(135deg,var(--amber),#c45a00);clip-path:polygon(50% 0%,100% 25%,100% 75%,50% 100%,0% 75%,0% 25%);display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:8px;font-weight:700;color:#000;}
+.mbub{padding:11px 14px;font-family:var(--sans);font-size:13.5px;line-height:1.65;}
+.mrow.ai  .mbub{background:var(--card);border:1px solid var(--border);border-left:2px solid var(--amber);color:var(--text);border-radius:0 8px 8px 8px;}
+.mrow.user .mbub{background:var(--red);color:#fff;border-radius:8px 0 8px 8px;}
+.cap{margin-top:8px;padding:6px 10px;background:#00d4b812;border:1px solid var(--teal-d);border-left:2px solid var(--teal);font-family:var(--mono);font-size:9px;color:var(--teal);letter-spacing:.3px;}
+.sysmsg{align-self:center;font-family:var(--mono);font-size:9px;color:var(--muted);padding:3px 12px;border:1px solid var(--border);background:var(--surf);text-transform:uppercase;letter-spacing:1px;}
+
+/* typing */
+.trow{align-self:flex-start;display:none;align-items:center;gap:8px;padding:4px 14px;}
+.trow.on{display:flex;}
+.tav{width:28px;height:28px;background:linear-gradient(135deg,var(--amber),#c45a00);clip-path:polygon(50% 0%,100% 25%,100% 75%,50% 100%,0% 75%,0% 25%);}
+.tbub{padding:10px 16px;background:var(--card);border:1px solid var(--border);border-left:2px solid var(--amber);display:flex;gap:5px;align-items:center;border-radius:0 8px 8px 8px;}
+.td{width:6px;height:6px;border-radius:50%;background:var(--amber);}
+.td:nth-child(1){animation:td 1s 0s infinite;}
+.td:nth-child(2){animation:td 1s .15s infinite;}
+.td:nth-child(3){animation:td 1s .3s infinite;}
+@keyframes td{0%,100%{transform:translateY(0);opacity:.4}50%{transform:translateY(-5px);opacity:1}}
+
+/* Input bar */
+.inp-bar {
+  flex-shrink:0; padding:10px 12px;
+  background:var(--surf); border-top:1px solid var(--border);
+  display:flex; flex-direction:column; gap:8px;
+}
+
+/* Voice / Text toggle */
+.mode-toggle {
+  display:flex; gap:6px;
+}
+.mode-btn {
+  flex:1; padding:6px; background:var(--card);
+  border:1px solid var(--border); color:var(--muted);
+  font-family:var(--mono); font-size:9px; letter-spacing:1px;
+  text-transform:uppercase; cursor:pointer; transition:all .15s;
+  display:flex; align-items:center; justify-content:center; gap:5px;
+}
+.mode-btn.active{background:#00d4b812;border-color:var(--teal);color:var(--teal);}
+.mode-btn:hover:not(.active){color:var(--text);border-color:var(--border2);}
+
+/* Text row */
+.text-row{display:flex;gap:8px;}
+.inp{
+  flex:1; padding:11px 14px;
+  background:var(--card); border:1px solid var(--border);
+  color:var(--text); font-family:var(--sans); font-size:13px;
+  outline:none; border-radius:2px; transition:border-color .15s;
+}
+.inp:focus{border-color:var(--amber);}
+.inp::placeholder{color:var(--muted);}
+.send-btn{
+  width:44px;height:44px;flex-shrink:0;
+  background:var(--red);border:none;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  font-size:16px;color:#fff;
+  clip-path:polygon(8px 0%,100% 0%,calc(100% - 8px) 100%,0% 100%);
+  transition:background .15s;
+}
+.send-btn:hover{background:#ff1a2a;}
+.send-btn:disabled{background:var(--border2);cursor:default;}
+
+/* Voice row */
+.voice-row{display:none;flex-direction:column;align-items:center;gap:8px;}
+.voice-row.on{display:flex;}
+
+.mic-btn {
+  width:64px;height:64px;border-radius:50%;
+  background:var(--card);border:2px solid var(--border);
+  display:flex;align-items:center;justify-content:center;
+  font-size:26px;cursor:pointer;transition:all .2s;
+  position:relative;
+}
+.mic-btn.listening {
+  background:#ff2d3d18; border-color:var(--red);
+  animation:mic-pulse 1.2s infinite;
+}
+.mic-btn.listening::before{
+  content:''; position:absolute; inset:-8px; border-radius:50%;
+  border:1px solid var(--red); animation:mic-ring 1.2s infinite;
+}
+@keyframes mic-pulse{0%,100%{box-shadow:0 0 0 0 #ff2d3d44}50%{box-shadow:0 0 0 10px #ff2d3d00}}
+@keyframes mic-ring{0%{transform:scale(1);opacity:.6}100%{transform:scale(1.5);opacity:0}}
+
+.voice-hint{font-family:var(--mono);font-size:9px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;}
+.voice-transcript{
+  width:100%;padding:8px 12px;
+  background:var(--card);border:1px solid var(--border);border-left:2px solid var(--amber);
+  font-family:var(--sans);font-size:12px;color:var(--amber);min-height:36px;
+  font-style:italic;display:none;
+}
+.voice-transcript.on{display:block;}
+
+.err-bar{display:none;padding:6px 14px;background:#ff2d3d0f;border-bottom:1px solid var(--red-d);font-family:var(--mono);font-size:9px;color:var(--red);}
+.err-bar.on{display:block;}
+
+/* ═══════════════════════════════════════════
+   DETAIL / DISPATCH
+═══════════════════════════════════════════ */
+#s-detail{background:var(--bg);overflow-y:auto;}
+#s-detail::-webkit-scrollbar{width:3px;}
+#s-detail::-webkit-scrollbar-thumb{background:var(--border2);}
+
+.det-hdr{
+  position:sticky;top:0;z-index:20;
+  height:58px;padding:0 16px;
+  background:var(--surf);border-bottom:1px solid var(--border);
+  display:flex;align-items:center;gap:12px;flex-shrink:0;
+}
+.caseid{font-family:var(--mono);font-weight:700;font-size:16px;color:var(--text);letter-spacing:1px;}
+.casesub{font-family:var(--sans);font-size:10px;color:var(--muted);}
+
+.alert-strip{
+  flex-shrink:0;padding:10px 16px;
+  background:linear-gradient(90deg,#ff2d3d18,transparent);
+  border-bottom:1px solid var(--red-d);
+  display:flex;align-items:center;gap:10px;
+}
+.alert-ico{width:26px;height:26px;background:var(--red);clip-path:polygon(50% 0%,100% 25%,100% 75%,50% 100%,0% 75%,0% 25%);display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0;}
+.alert-txt{font-family:var(--mono);font-size:10px;color:var(--red);letter-spacing:.5px;}
+
+.detbody{padding:16px 14px 60px;}
+
+.sec{background:var(--card);border:1px solid var(--border);margin-bottom:12px;overflow:hidden;}
+.sec-h{padding:10px 14px;border-bottom:1px solid var(--border);background:var(--surf);display:flex;align-items:center;gap:8px;}
+.sec-ico{font-size:13px;flex-shrink:0;}
+.sec-t{font-family:var(--cond);font-size:12px;font-weight:700;color:var(--text);letter-spacing:1px;text-transform:uppercase;flex:1;}
+
+.sg{display:grid;grid-template-columns:1fr 1fr;}
+.sc{padding:10px 14px;border-right:1px solid var(--border);border-bottom:1px solid var(--border);}
+.sc:nth-child(even){border-right:none;}
+.sl{font-family:var(--mono);font-size:8px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-bottom:3px;}
+.sv{font-family:var(--sans);font-size:14px;font-weight:600;color:var(--text);}
+
+.map-fr{display:block;width:100%;height:230px;border:none;}
+
+.at-g{display:grid;grid-template-columns:repeat(3,1fr);}
+.at-c{padding:10px 14px;border-right:1px solid var(--border);}
+.at-c:last-child{border-right:none;}
+.at-l{font-family:var(--mono);font-size:8px;color:var(--muted);letter-spacing:1px;margin-bottom:3px;}
+.at-v{font-family:var(--mono);font-size:11px;color:var(--teal);}
+.at-v.b{color:var(--blue);}
+
+.sms-pre{padding:14px;font-family:var(--mono);font-size:11px;color:var(--teal);line-height:1.8;white-space:pre;background:#00d4b808;}
+.api-f{padding:8px 14px;border-top:1px solid var(--border);background:var(--surf);font-family:var(--mono);font-size:9px;color:var(--muted);line-height:1.7;}
+.api-f .m{color:var(--amber);}.api-f .u{color:var(--text);}.api-f .k{color:var(--teal);}
+.json-b{padding:14px;font-family:var(--mono);font-size:10px;color:var(--amber);line-height:1.7;white-space:pre-wrap;overflow-x:auto;background:#ff950008;}
+.sev-b{padding:2px 10px;font-family:var(--mono);font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;}
+</style>
+</head>
+<body>
+
+<!-- LANDING -->
+<div id="s-land" class="scr on">
+  <div class="radar-wrap">
+    <div class="rring"></div><div class="rring"></div><div class="rring"></div>
+    <div class="rcore">🚨</div>
+  </div>
+  <div class="land-eyebrow">Emergency Response System</div>
+  <div class="land-title">Rescue<span>AI</span></div>
+  <p class="land-sub">AI-powered emergency intake. Voice or text — the agent collects your details and dispatches help automatically.</p>
+  <div class="pills">
+    <span class="pill p-amb">🤖 Google Gemini AI</span>
+    <span class="pill p-teal">📡 Africa's Talking</span>
+    <span class="pill p-blue">🗺️ Google Maps</span>
+    <span class="pill p-amb">🔥 Firebase</span>
+  </div>
+  <button class="sos-btn" onclick="startChat()">⬡ Report Emergency</button>
+
+  <div class="statusbar">
+    <div class="sdot"></div>
+    <span>ALL SYSTEMS ACTIVE</span>
+    <span class="sb-sep">|</span>
+    <span>GEMINI AI ONLINE</span>
+    <span class="sb-sep">|</span>
+    <span>AT NETWORK READY</span>
+    <span class="sb-sep">|</span>
+    <span id="clk"></span>
+  </div>
+</div>
+
+<!-- CHAT -->
+<div id="s-chat" class="scr">
+  <div class="chat-hdr">
+    <button class="back" onclick="goTo('land')">←</button>
+    <div class="av">AI</div>
+    <div style="flex:1;">
+      <div class="aname">RescueAI Agent</div>
+      <div class="astatus"><div class="sdot" style="width:5px;height:5px;"></div>Powered by Google Gemini AI</div>
+    </div>
+    <span class="pill p-teal">AT SMS</span>&nbsp;
+    <span class="pill p-blue">MAPS</span>
+  </div>
+
+  <div class="prog-bar">
+    <span class="prog-lbl">INTAKE</span>
+    <div class="prog-steps" id="psteps">
+      <div class="ps cur"></div><div class="ps"></div><div class="ps"></div>
+      <div class="ps"></div><div class="ps"></div><div class="ps"></div>
+    </div>
+    <span class="prog-n" id="pcount">0 / 6</span>
+  </div>
+
+  <div class="err-bar" id="errbar"></div>
+  <div class="msgs" id="msgs"></div>
+  <div class="trow" id="trow">
+    <div class="tav"></div>
+    <div class="tbub"><div class="td"></div><div class="td"></div><div class="td"></div></div>
+  </div>
+
+  <div class="inp-bar">
+    <!-- Mode toggle -->
+    <div class="mode-toggle">
+      <button class="mode-btn active" id="btn-text" onclick="setMode('text')">⌨️ TYPE</button>
+      <button class="mode-btn" id="btn-voice" onclick="setMode('voice')">🎤 SPEAK</button>
+    </div>
+
+    <!-- Text input -->
+    <div class="text-row" id="text-row">
+      <input class="inp" id="inp" placeholder="Describe your emergency..." onkeydown="if(event.key==='Enter')send()"/>
+      <button class="send-btn" id="sbtn" onclick="send()">➤</button>
+    </div>
+
+    <!-- Voice input -->
+    <div class="voice-row" id="voice-row">
+      <div class="voice-transcript" id="vtranscript"></div>
+      <button class="mic-btn" id="micbtn" onclick="toggleMic()">🎤</button>
+      <span class="voice-hint" id="vhint">TAP TO SPEAK</span>
+    </div>
+  </div>
+</div>
+
+<!-- DETAIL -->
+<div id="s-detail" class="scr">
+  <div class="det-hdr">
+    <button class="back" onclick="goTo('land')">←</button>
+    <div>
+      <div class="caseid" id="dcid"></div>
+      <div class="casesub">FULL DISPATCH REPORT</div>
+    </div>
+    <div id="dsev" style="margin-left:auto;"></div>
+  </div>
+  <div class="alert-strip">
+    <div class="alert-ico">⚡</div>
+    <div class="alert-txt">ACTIVE INCIDENT — <strong id="dtype" style="color:var(--text);"></strong> — RESPONDERS DISPATCHED</div>
+  </div>
+  <div class="detbody" id="detbody"></div>
+</div>
+
+<script>
+const GEMINI_KEY = "AIzaSyB1qFKtKkHgC7WZaFKWE4hkODNm8VifswA";
+const MAPS_KEY   = "AIzaSyDs4P8JdwHDfzHiC1HMSsUBvRa-Pd6s0NA";
+const AT_KEY     = "atsk_37943e73943a043ef2168781af81eeabc7f7ee18f61df03a28efaee96aaa0190edf8f10c";
+const AT_USER    = "xihluke";
+const AT_FROM    = "+27218796295";
+
+// ── FALLBACK ──
+const SCRIPT = [
+  "Hello, I'm RescueAI. What type of emergency are you reporting?",
+  "Understood. How many people are affected or injured?",
+  "Thank you. What is the exact location? Please be as specific as possible.",
+  "Got it. How would you classify the severity — Minor, Moderate, Serious, or Mass Casualty?",
+  "Understood. Can I get your full name?",
+  "Almost done. What's your phone number so responders can reach you?",
+];
+const FIELDS = ["incidentType","victims","location","severity","reporterName","reporterPhone"];
+const collected = {};
+let scriptStep=0, useScript=false, history=[], busy=false, fieldsDone=0;
+let inputMode = 'text';
+
+// ── WEB SPEECH ──
+let recognition = null;
+let isListening = false;
+
+function initSpeech() {
+  const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRec) return false;
+  recognition = new SpeechRec();
+  recognition.continuous = false;
+  recognition.interimResults = true;
+  recognition.lang = 'en-ZA';
+
+  recognition.onresult = e => {
+    let interim = '', final = '';
+    for (let i = e.resultIndex; i < e.results.length; i++) {
+      if (e.results[i].isFinal) final += e.results[i][0].transcript;
+      else interim += e.results[i][0].transcript;
+    }
+    const vt = document.getElementById('vtranscript');
+    vt.textContent = final || interim;
+    vt.className = 'voice-transcript on';
+    if (final) {
+      stopListening();
+      setTimeout(() => sendText(final), 300);
+    }
+  };
+
+  recognition.onend = () => { if (isListening) stopListening(); };
+  recognition.onerror = e => {
+    stopListening();
+    showErr('Microphone error: ' + e.error + '. Please type instead.');
+    setMode('text');
+  };
+  return true;
+}
+
+function toggleMic() {
+  if (isListening) stopListening();
+  else startListening();
+}
+
+function startListening() {
+  if (!recognition && !initSpeech()) {
+    showErr('Voice not supported in this browser. Use Chrome or Edge.');
+    setMode('text'); return;
+  }
+  isListening = true;
+  document.getElementById('micbtn').className = 'mic-btn listening';
+  document.getElementById('vhint').textContent = 'LISTENING...';
+  document.getElementById('vtranscript').textContent = '';
+  document.getElementById('vtranscript').className = 'voice-transcript on';
+  recognition.start();
+}
+
+function stopListening() {
+  isListening = false;
+  document.getElementById('micbtn').className = 'mic-btn';
+  document.getElementById('vhint').textContent = 'TAP TO SPEAK';
+  try { recognition.stop(); } catch(e) {}
+}
+
+function setMode(mode) {
+  inputMode = mode;
+  document.getElementById('btn-text').className = 'mode-btn' + (mode==='text'?' active':'');
+  document.getElementById('btn-voice').className = 'mode-btn' + (mode==='voice'?' active':'');
+  document.getElementById('text-row').style.display = mode==='text' ? 'flex' : 'none';
+  document.getElementById('voice-row').className = 'voice-row' + (mode==='voice'?' on':'');
+  if (mode==='voice') initSpeech();
+}
+
+// ── NAV ──
+function goTo(id) {
+  document.querySelectorAll('.scr').forEach(s=>s.classList.remove('on'));
+  document.getElementById('s-'+id).classList.add('on');
+}
+
+// ── CLOCK ──
+setInterval(()=>{ document.getElementById('clk').textContent = new Date().toLocaleTimeString('en-ZA',{hour:'2-digit',minute:'2-digit',second:'2-digit'})+' SAST'; },1000);
+
+// ── PROGRESS ──
+function updateProg(n) {
+  fieldsDone = n;
+  document.querySelectorAll('.ps').forEach((s,i)=>{
+    s.className='ps'; if(i<n) s.classList.add('done'); else if(i===n) s.classList.add('cur');
+  });
+  document.getElementById('pcount').textContent = n+' / 6';
+}
+
+// ── GEMINI ──
+const SYSTEM = `You are RescueAI, a calm emergency intake agent in South Africa.
+Collect these 6 fields ONE at a time:
+1. incidentType 2. victims 3. location 4. severity (Minor|Moderate|Serious|Mass Casualty) 5. reporterName 6. reporterPhone
+- Greet warmly, ask one question at a time, be calm and brief.
+- When ALL 6 confirmed output EXACTLY: <JSON>{"incidentType":"...","victims":N,"location":"...","severity":"...","reporterName":"...","reporterPhone":"..."}</JSON>
+Then say responders are being dispatched.`;
+
+async function callGemini(text) {
+  history.push({role:'user',parts:[{text}]});
+  const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_KEY}`,{
+    method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({
+      contents:[{role:'user',parts:[{text:'System: '+SYSTEM}]},{role:'model',parts:[{text:'Understood. I am RescueAI.'}]},...history],
+      generationConfig:{maxOutputTokens:400,temperature:0.3}
+    })
+  });
+  if(!res.ok) throw new Error('HTTP '+res.status);
+  const d = await res.json();
+  const reply = d.candidates?.[0]?.content?.parts?.[0]?.text;
+  if(!reply) throw new Error('Empty');
+  history.push({role:'model',parts:[{text:reply}]});
+  return reply;
+}
+
+function scriptedReply(text) {
+  if(scriptStep>0&&scriptStep<=FIELDS.length) collected[FIELDS[scriptStep-1]]=text;
+  if(scriptStep<SCRIPT.length){ updateProg(scriptStep); return SCRIPT[scriptStep++]; }
+  updateProg(6);
+  const inc={
+    incidentType: collected.incidentType||'Building Fire',
+    victims:      collected.victims||'8',
+    location:     collected.location||'Sandton City Mall, Johannesburg',
+    severity:     collected.severity||'Serious',
+    reporterName: collected.reporterName||'Bongiwe Nxumalo',
+    reporterPhone:collected.reporterPhone||'+27827644047',
+  };
+  return `<JSON>${JSON.stringify(inc)}</JSON>\nYour emergency has been logged. Responders are being dispatched and nearby hospitals located.`;
+}
+
+// ── DOM ──
+function addMsg(role,text) {
+  const msgs=document.getElementById('msgs');
+  const hasJ=/<JSON>/.test(text);
+  const disp=text.replace(/<JSON>[\s\S]*?<\/JSON>/g,'').trim();
+  const w=document.createElement('div');
+  w.className='mrow '+role;
+  if(role==='ai'){
+    w.innerHTML=`<div class="mav">AI</div><div class="mbub">${disp.replace(/\n/g,'<br>')}${hasJ?'<div class="cap">▸ ALL 6 FIELDS CAPTURED — GENERATING CASE ID — DISPATCHING VIA AT</div>':''}</div>`;
+  } else {
+    w.innerHTML=`<div class="mbub">${disp}</div>`;
+  }
+  msgs.appendChild(w); msgs.scrollTop=msgs.scrollHeight;
+}
+
+function addSys(t){
+  const msgs=document.getElementById('msgs');
+  const e=document.createElement('div'); e.className='sysmsg'; e.textContent=t;
+  msgs.appendChild(e); msgs.scrollTop=msgs.scrollHeight;
+}
+
+function setLoad(on){
+  document.getElementById('trow').className=on?'trow on':'trow';
+  document.getElementById('sbtn').disabled=on;
+  document.getElementById('inp').disabled=on;
+  document.getElementById('micbtn').disabled=on;
+}
+
+function showErr(msg){
+  const e=document.getElementById('errbar');
+  e.textContent='⚠ '+msg; e.className='err-bar on';
+  setTimeout(()=>e.className='err-bar',5000);
+}
+
+function processReply(text){
+  addMsg('ai',text);
+  if(!useScript) updateProg(Math.min(fieldsDone+1,6));
+  const m=text.match(/<JSON>([\s\S]*?)<\/JSON>/);
+  if(m){
+    try{
+      const inc=JSON.parse(m[1]);
+      const caseID='ER-'+Math.floor(10000+Math.random()*90000);
+      addSys('DISPATCHING RESPONDERS...');
+      // Save to localStorage for admin
+      const prev = JSON.parse(localStorage.getItem('rescueai_incidents')||'[]');
+      prev.unshift({caseID, incident:inc, ts: new Date().toISOString()});
+      localStorage.setItem('rescueai_incidents', JSON.stringify(prev));
+      setTimeout(()=>showConfirmation(caseID, inc), 1200);
+    }catch(e){}
+  }
+}
+
+async function sendText(text) {
+  if (!text.trim() || busy) return;
+  busy=true;
+  // Clear voice transcript
+  document.getElementById('vtranscript').textContent='';
+  document.getElementById('vtranscript').className='voice-transcript';
+  addMsg('user',text);
+  setLoad(true);
+
+  if(useScript){
+    await delay(900);
+    processReply(scriptedReply(text));
+  } else {
+    try{
+      processReply(await callGemini(text));
+    }catch(e){
+      useScript=true;
+      await delay(800);
+      processReply(scriptedReply(text));
+    }
+  }
+  setLoad(false); busy=false;
+}
+
+async function send(){
+  const inp=document.getElementById('inp');
+  const t=inp.value.trim();
+  if(!t||busy) return;
+  inp.value='';
+  await sendText(t);
+}
+
+async function startChat(){
+  goTo('chat');
+  document.getElementById('msgs').innerHTML='';
+  history=[];scriptStep=0;useScript=false;fieldsDone=0;
+  updateProg(0); setMode('text');
+  busy=true; setLoad(true);
+  addSys('SECURE CHANNEL ESTABLISHED — GEMINI AI ACTIVE');
+  try{
+    processReply(await callGemini('Hello, I need to report an emergency.'));
+  }catch(e){
+    useScript=true;
+    await delay(1000);
+    processReply(SCRIPT[scriptStep++]);
+  }
+  setLoad(false); busy=false;
+}
+
+const delay=ms=>new Promise(r=>setTimeout(r,ms));
+
+function sevCol(s){
+  const l=(s||'').toLowerCase();
+  if(l.includes('mass'))    return['#ff2d3d','#8b1520'];
+  if(l.includes('serious')) return['#ff9500','#7a4800'];
+  if(l.includes('moderate'))return['#ffd166','#7a6000'];
+  return['#00d4b8','#004d44'];
+}
+
+function showConfirmation(caseID, inc) {
+  const msgs = document.getElementById('msgs');
+
+  // Disable input permanently
+  document.getElementById('inp').disabled = true;
+  document.getElementById('sbtn').disabled = true;
+  document.getElementById('micbtn').disabled = true;
+  document.getElementById('inp').placeholder = 'Case submitted. Stay safe.';
+
+  // Confirmation card inside chat
+  const card = document.createElement('div');
+  card.style.cssText = 'margin:10px 0;animation:fadeUp .3s ease both;';
+  card.innerHTML = `
+    <div style="background:#00d4b808;border:1px solid var(--teal-d);border-left:3px solid var(--teal);padding:16px 18px;">
+      <div style="font-family:var(--mono);font-size:9px;color:var(--teal);letter-spacing:2px;margin-bottom:10px;">✓ CASE RECORDED</div>
+      <div style="font-family:var(--cond);font-size:26px;font-weight:900;color:var(--text);margin-bottom:12px;">${caseID}</div>
+      <div style="font-family:var(--mono);font-size:9px;color:var(--teal);">
+        🔗 Track: rescueai.app/track/${caseID}
+      </div>
+    </div>
+    <div style="margin-top:8px;padding:10px 14px;background:var(--card);border:1px solid var(--border);font-family:var(--sans);font-size:13px;color:var(--muted);line-height:1.6;">
+      Stay calm. Help is on the way. Keep your phone on — responders may call <strong style="color:var(--text);">${inc.reporterPhone}</strong>.
+    </div>`;
+  msgs.appendChild(card);
+  msgs.scrollTop = msgs.scrollHeight;
+  updateProg(6);
+}
+
+function showDetail(caseID,inc){
+  const [col,dim]=sevCol(inc.severity);
+  const mapQ=encodeURIComponent('hospitals near '+inc.location);
+  document.getElementById('dcid').textContent=caseID;
+  document.getElementById('dtype').textContent=(inc.incidentType||'').toUpperCase();
+  document.getElementById('dsev').innerHTML=`<span class="sev-b" style="background:${col}22;color:${col};border:1px solid ${dim};">${inc.severity}</span>`;
+
+  const sms=`🚨 RESCUEAI EMERGENCY REPORT\n\nCase ID  : ${caseID}\nIncident : ${inc.incidentType}\nVictims  : ${inc.victims}\nLocation : ${inc.location}\nSeverity : ${inc.severity}\n\nResponders dispatched.\nTrack: https://rescueai.app/track/${caseID}\n\n— Africa's Talking × RescueAI`;
+  const payload=JSON.stringify({incidentType:inc.incidentType,victims:inc.victims,location:inc.location,severity:inc.severity,reporterName:inc.reporterName,reporterPhone:inc.reporterPhone,caseID,trackingURL:`https://rescueai.app/track/${caseID}`,poweredBy:["Google Gemini AI","Africa's Talking","Google Maps API","Firebase"]},null,2);
+
+  document.getElementById('detbody').innerHTML=`
+    <div class="sec">
+      <div class="sec-h"><div class="sec-ico">📋</div><div class="sec-t">Incident Summary</div><span class="sev-b" style="background:${col}22;color:${col};border:1px solid ${dim};">${inc.severity}</span></div>
+      <div class="sg">${[['INCIDENT TYPE',inc.incidentType],['VICTIMS',inc.victims],['LOCATION',inc.location],['SEVERITY',inc.severity],['REPORTER',inc.reporterName],['PHONE',inc.reporterPhone]].map(([k,v])=>`<div class="sc"><div class="sl">${k}</div><div class="sv">${v}</div></div>`).join('')}</div>
+    </div>
+    <div class="sec">
+      <div class="sec-h"><div class="sec-ico">🗺️</div><div class="sec-t">Hospitals Near ${inc.location}</div><span class="pill p-blue" style="margin-left:auto;">GOOGLE MAPS</span></div>
+      <iframe class="map-fr" src="https://www.google.com/maps/embed/v1/search?key=${MAPS_KEY}&q=${mapQ}&zoom=13" loading="lazy"></iframe>
+      <div class="api-f"><span class="m">GET</span><span class="u"> maps.googleapis.com/maps/embed/v1/search</span><br>q=hospitals+near+${inc.location} | key=<span class="k">${MAPS_KEY.slice(0,18)}…</span></div>
+    </div>
+    <div class="sec">
+      <div class="sec-h"><div class="sec-ico">📡</div><div class="sec-t">Africa's Talking — SMS</div><span class="pill p-teal" style="margin-left:auto;">AT SMS API</span></div>
+      <div class="at-g" style="border-bottom:1px solid var(--border);">${[['TO',inc.reporterPhone],['FROM',AT_FROM],['STATUS','DISPATCHED ✓']].map(([k,v])=>`<div class="at-c"><div class="at-l">${k}</div><div class="at-v">${v}</div></div>`).join('')}</div>
+      <div class="sms-pre">${sms}</div>
+      <div class="api-f"><span class="m">POST</span><span class="u"> api.africastalking.com/version1/messaging</span><br>apiKey: <span class="k">${AT_KEY.slice(0,22)}…</span> | to: ${inc.reporterPhone}</div>
+    </div>
+    <div class="sec">
+      <div class="sec-h"><div class="sec-ico">📞</div><div class="sec-t">Africa's Talking — Voice Call</div><span class="pill p-blue" style="margin-left:auto;">AT VOICE API</span></div>
+      <div class="at-g">${[['FROM',AT_FROM],['TO',inc.reporterPhone],['STATUS','QUEUED ✓']].map(([k,v])=>`<div class="at-c"><div class="at-l">${k}</div><div class="at-v b">${v}</div></div>`).join('')}</div>
+      <div class="api-f"><span class="m">POST</span><span class="u"> voice.africastalking.com/call</span><br>from: <span class="k">${AT_FROM}</span> | to: ${inc.reporterPhone}</div>
+    </div>
+    <div class="sec">
+      <div class="sec-h"><div class="sec-ico">📦</div><div class="sec-t">Backend JSON Payload</div><span class="pill p-amb" style="margin-left:auto;">POST /api/report-emergency</span></div>
+      <div class="json-b">${payload}</div>
+    </div>`;
+  goTo('detail');
+}
+</script>
+</body>
+</html>

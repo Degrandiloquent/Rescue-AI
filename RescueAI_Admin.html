@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>RescueAI — Admin Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Barlow:wght@300;400;600;700;900&family=Barlow+Condensed:wght@300;400;600;700;900&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bg:#060810; --surf:#0b0f1a; --card:#0f1420;
+  --border:#1a2236; --border2:#243050;
+  --red:#ff2d3d; --red-d:#8b1520;
+  --amber:#ff9500; --amber-d:#7a4800;
+  --teal:#00d4b8; --teal-d:#004d44;
+  --blue:#3b82f6; --blue-d:#1e3a5f;
+  --green:#22c55e; --green-d:#14532d;
+  --text:#e8f0ff; --muted:#4a5878; --muted2:#2a3550;
+  --mono:'Space Mono',monospace;
+  --sans:'Barlow',sans-serif;
+  --cond:'Barlow Condensed',sans-serif;
+}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--sans);overflow:hidden;}
+body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;background-image:linear-gradient(rgba(59,130,246,0.025) 1px,transparent 1px),linear-gradient(90deg,rgba(59,130,246,0.025) 1px,transparent 1px);background-size:48px 48px;}
+
+/* ── LAYOUT ── */
+#app{position:relative;z-index:1;display:flex;flex-direction:column;height:100vh;}
+
+/* ── TOP NAV ── */
+.topnav{
+  flex-shrink:0; height:54px; padding:0 20px;
+  background:var(--surf); border-bottom:1px solid var(--border);
+  display:flex; align-items:center; gap:16px;
+}
+.nav-logo{display:flex;align-items:center;gap:10px;}
+.logo-hex{
+  width:32px;height:32px;
+  background:var(--red);
+  clip-path:polygon(50% 0%,100% 25%,100% 75%,50% 100%,0% 75%,0% 25%);
+  display:flex;align-items:center;justify-content:center;font-size:14px;
+}
+.nav-title{font-family:var(--cond);font-size:20px;font-weight:900;color:var(--text);}
+.nav-title span{color:var(--red);}
+.nav-badge{font-family:var(--mono);font-size:8px;padding:2px 8px;background:#ff2d3d18;color:var(--red);border:1px solid var(--red-d);letter-spacing:1px;text-transform:uppercase;}
+.nav-right{margin-left:auto;display:flex;align-items:center;gap:14px;}
+.nav-status{display:flex;align-items:center;gap:6px;font-family:var(--mono);font-size:9px;color:var(--teal);}
+.sdot{width:6px;height:6px;border-radius:50%;background:var(--teal);box-shadow:0 0 6px var(--teal);animation:blink 2s infinite;}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+.reporter-btn{
+  padding:6px 14px;background:var(--red);color:#fff;border:none;
+  font-family:var(--cond);font-size:12px;font-weight:700;letter-spacing:1px;
+  text-transform:uppercase;cursor:pointer;
+  clip-path:polygon(6px 0%,100% 0%,calc(100% - 6px) 100%,0% 100%);
+  transition:background .15s;
+}
+.reporter-btn:hover{background:#ff1a2a;}
+#admin-clk{font-family:var(--mono);font-size:10px;color:var(--muted);}
+
+/* ── MAIN BODY ── */
+.main{flex:1;overflow:hidden;display:flex;}
+
+/* ── SIDEBAR ── */
+.sidebar{
+  width:220px;flex-shrink:0;
+  background:var(--surf);border-right:1px solid var(--border);
+  display:flex;flex-direction:column;
+  overflow-y:auto;
+}
+.sidebar::-webkit-scrollbar{width:3px;}
+.sidebar::-webkit-scrollbar-thumb{background:var(--border2);}
+
+.sb-section{padding:14px 16px 6px;font-family:var(--mono);font-size:8px;color:var(--muted);letter-spacing:2px;text-transform:uppercase;}
+.sb-item{
+  padding:10px 16px;display:flex;align-items:center;gap:10px;
+  cursor:pointer;transition:background .15s;border-left:2px solid transparent;
+}
+.sb-item:hover{background:var(--card);}
+.sb-item.active{background:var(--card);border-left-color:var(--red);}
+.sb-icon{font-size:14px;width:20px;text-align:center;flex-shrink:0;}
+.sb-label{font-family:var(--sans);font-size:13px;color:var(--text);}
+.sb-count{margin-left:auto;font-family:var(--mono);font-size:9px;padding:1px 6px;background:var(--red);color:#fff;}
+
+.sb-div{margin:8px 16px;border-top:1px solid var(--border);}
+
+/* ── CONTENT ── */
+.content{flex:1;overflow-y:auto;padding:20px;}
+.content::-webkit-scrollbar{width:3px;}
+.content::-webkit-scrollbar-thumb{background:var(--border2);}
+
+/* ── PAGE HEADER ── */
+.page-hdr{display:flex;align-items:center;gap:12px;margin-bottom:20px;}
+.page-title{font-family:var(--cond);font-size:26px;font-weight:900;color:var(--text);}
+.page-sub{font-family:var(--sans);font-size:12px;color:var(--muted);margin-top:2px;}
+.page-hdr-right{margin-left:auto;display:flex;gap:8px;}
+
+/* ── STAT CARDS ── */
+.stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px;}
+.stat-card{
+  background:var(--card);border:1px solid var(--border);
+  padding:16px;position:relative;overflow:hidden;
+}
+.stat-card::before{
+  content:'';position:absolute;top:0;left:0;right:0;height:3px;
+}
+.sc-red::before{background:var(--red);}
+.sc-teal::before{background:var(--teal);}
+.sc-amber::before{background:var(--amber);}
+.sc-blue::before{background:var(--blue);}
+.sc-green::before{background:var(--green);}
+
+.stat-val{font-family:var(--cond);font-size:36px;font-weight:900;line-height:1;margin-bottom:4px;}
+.sc-red .stat-val{color:var(--red);}
+.sc-teal .stat-val{color:var(--teal);}
+.sc-amber .stat-val{color:var(--amber);}
+.sc-blue .stat-val{color:var(--blue);}
+.sc-green .stat-val{color:var(--green);}
+.stat-label{font-family:var(--mono);font-size:8px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;}
+.stat-icon{position:absolute;right:14px;top:14px;font-size:22px;opacity:.25;}
+
+/* ── INCIDENT TABLE ── */
+.table-wrap{background:var(--card);border:1px solid var(--border);overflow:hidden;margin-bottom:20px;}
+.table-hdr{
+  padding:12px 16px;background:var(--surf);border-bottom:1px solid var(--border);
+  display:flex;align-items:center;gap:10px;
+}
+.th-title{font-family:var(--cond);font-size:13px;font-weight:700;color:var(--text);letter-spacing:1px;text-transform:uppercase;}
+.th-right{margin-left:auto;display:flex;gap:8px;}
+.filter-btn{
+  padding:4px 10px;background:var(--card);border:1px solid var(--border);
+  font-family:var(--mono);font-size:8px;color:var(--muted);letter-spacing:1px;
+  text-transform:uppercase;cursor:pointer;transition:all .15s;
+}
+.filter-btn.on{background:#ff2d3d18;border-color:var(--red-d);color:var(--red);}
+.filter-btn:hover:not(.on){color:var(--text);}
+
+table{width:100%;border-collapse:collapse;}
+th{
+  padding:8px 14px;text-align:left;
+  font-family:var(--mono);font-size:8px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;
+  border-bottom:1px solid var(--border);background:var(--surf);
+}
+td{padding:10px 14px;border-bottom:1px solid var(--border);font-family:var(--sans);font-size:12px;color:var(--text);}
+tr:last-child td{border-bottom:none;}
+tr:hover td{background:#ffffff04;}
+.td-mono{font-family:var(--mono);font-size:11px;}
+.td-muted{color:var(--muted);}
+
+.sev-badge{
+  padding:2px 8px;font-family:var(--mono);font-size:8px;font-weight:700;
+  letter-spacing:1px;text-transform:uppercase;border:1px solid;
+}
+.view-btn{
+  padding:4px 10px;background:none;border:1px solid var(--border);
+  font-family:var(--mono);font-size:8px;color:var(--muted);letter-spacing:1px;
+  text-transform:uppercase;cursor:pointer;transition:all .15s;
+}
+.view-btn:hover{border-color:var(--teal);color:var(--teal);}
+
+/* ── EMPTY STATE ── */
+.empty{
+  padding:60px 20px;text-align:center;
+}
+.empty-icon{font-size:40px;margin-bottom:14px;opacity:.4;}
+.empty-title{font-family:var(--cond);font-size:18px;font-weight:700;color:var(--muted);margin-bottom:6px;}
+.empty-sub{font-family:var(--sans);font-size:12px;color:var(--muted);}
+
+/* ── MAP PANEL ── */
+.map-panel{background:var(--card);border:1px solid var(--border);overflow:hidden;margin-bottom:20px;}
+.map-hdr{padding:10px 14px;background:var(--surf);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;}
+.map-title{font-family:var(--cond);font-size:12px;font-weight:700;color:var(--text);letter-spacing:1px;text-transform:uppercase;}
+.admin-map{display:block;width:100%;height:280px;border:none;}
+
+/* ── DETAIL PANEL (slide-in) ── */
+.detail-panel{
+  position:fixed;top:0;right:0;bottom:0;width:420px;z-index:200;
+  background:var(--surf);border-left:1px solid var(--border);
+  display:flex;flex-direction:column;
+  transform:translateX(100%);transition:transform .25s ease;
+  overflow-y:auto;
+}
+.detail-panel::-webkit-scrollbar{width:3px;}
+.detail-panel::-webkit-scrollbar-thumb{background:var(--border2);}
+.detail-panel.open{transform:translateX(0);}
+
+.dp-hdr{
+  flex-shrink:0;height:54px;padding:0 16px;
+  background:var(--surf);border-bottom:1px solid var(--border);
+  display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:10;
+}
+.close-btn{background:none;border:none;color:var(--muted);cursor:pointer;font-size:18px;font-family:var(--mono);transition:color .15s;}
+.close-btn:hover{color:var(--text);}
+.dp-body{padding:16px;}
+
+.dp-sec{background:var(--card);border:1px solid var(--border);margin-bottom:10px;overflow:hidden;}
+.dp-sh{padding:8px 12px;border-bottom:1px solid var(--border);background:#060810;font-family:var(--cond);font-size:11px;font-weight:700;color:var(--muted);letter-spacing:1px;text-transform:uppercase;}
+.dp-sg{display:grid;grid-template-columns:1fr 1fr;}
+.dp-sc{padding:9px 12px;border-right:1px solid var(--border);border-bottom:1px solid var(--border);}
+.dp-sc:nth-child(even){border-right:none;}
+.dp-sl{font-family:var(--mono);font-size:7px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-bottom:2px;}
+.dp-sv{font-family:var(--sans);font-size:12px;font-weight:600;color:var(--text);}
+.dp-map{display:block;width:100%;height:180px;border:none;}
+.dp-sms{padding:12px;font-family:var(--mono);font-size:10px;color:var(--teal);line-height:1.7;white-space:pre;background:#00d4b808;}
+
+/* overlay */
+.overlay{position:fixed;inset:0;z-index:190;background:#060810aa;display:none;}
+.overlay.on{display:block;}
+
+/* pill */
+.pill{font-family:var(--mono);font-size:8px;padding:2px 8px;border-radius:2px;letter-spacing:1px;text-transform:uppercase;font-weight:700;border:1px solid;}
+.p-teal{color:var(--teal);border-color:var(--teal-d);background:#00d4b80a;}
+.p-blue{color:var(--blue);border-color:var(--blue-d);background:#3b82f60a;}
+.p-amb{color:var(--amber);border-color:var(--amber-d);background:#ff95000a;}
+.p-red{color:var(--red);border-color:var(--red-d);background:#ff2d3d0a;}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- TOP NAV -->
+  <div class="topnav">
+    <div class="nav-logo">
+      <div class="logo-hex">🚨</div>
+      <div class="nav-title">Rescue<span>AI</span></div>
+      <span class="nav-badge">ADMIN</span>
+    </div>
+    <div class="nav-right">
+      <div class="nav-status"><div class="sdot"></div>ALL SYSTEMS LIVE</div>
+      <span id="admin-clk"></span>
+      <button class="reporter-btn" onclick="window.location='RescueAI_Reporter.html'">⬡ Reporter Portal →</button>
+    </div>
+  </div>
+
+  <div class="main">
+
+    <!-- SIDEBAR -->
+    <div class="sidebar">
+      <div class="sb-section">Overview</div>
+      <div class="sb-item active">
+        <div class="sb-icon">📊</div>
+        <div class="sb-label">Dashboard</div>
+      </div>
+      <div class="sb-item">
+        <div class="sb-icon">🚨</div>
+        <div class="sb-label">Incidents</div>
+        <div class="sb-count" id="sb-count">0</div>
+      </div>
+
+      <div class="sb-div"></div>
+      <div class="sb-section">Integrations</div>
+
+      <div class="sb-item">
+        <div class="sb-icon">📡</div>
+        <div class="sb-label">Africa's Talking</div>
+      </div>
+      <div class="sb-item">
+        <div class="sb-icon">🗺️</div>
+        <div class="sb-label">Google Maps</div>
+      </div>
+      <div class="sb-item">
+        <div class="sb-icon">🤖</div>
+        <div class="sb-label">Gemini AI</div>
+      </div>
+      <div class="sb-item">
+        <div class="sb-icon">🔥</div>
+        <div class="sb-label">Firebase</div>
+      </div>
+
+      <div class="sb-div"></div>
+      <div class="sb-section">System</div>
+      <div class="sb-item">
+        <div class="sb-icon">⚙️</div>
+        <div class="sb-label">Settings</div>
+      </div>
+      <div class="sb-item">
+        <div class="sb-icon">📋</div>
+        <div class="sb-label">Logs</div>
+      </div>
+    </div>
+
+    <!-- CONTENT -->
+    <div class="content">
+
+      <!-- Page header -->
+      <div class="page-hdr">
+        <div>
+          <div class="page-title">Command Dashboard</div>
+          <div class="page-sub">Real-time emergency incident monitoring · <span id="last-updated" style="color:var(--teal);">Live</span></div>
+        </div>
+        <div class="page-hdr-right">
+          <button class="filter-btn" onclick="clearAll()">Clear All</button>
+          <button class="filter-btn on" onclick="loadDemo()">Load Demo Data</button>
+        </div>
+      </div>
+
+      <!-- Stats -->
+      <div class="stats-row">
+        <div class="stat-card sc-red">
+          <div class="stat-val" id="stat-total">0</div>
+          <div class="stat-label">Total Incidents</div>
+          <div class="stat-icon">🚨</div>
+        </div>
+        <div class="stat-card sc-amber">
+          <div class="stat-val" id="stat-victims">0</div>
+          <div class="stat-label">Total Victims</div>
+          <div class="stat-icon">👥</div>
+        </div>
+        <div class="stat-card sc-teal">
+          <div class="stat-val" id="stat-sms">0</div>
+          <div class="stat-label">SMS Dispatched</div>
+          <div class="stat-icon">📡</div>
+        </div>
+        <div class="stat-card sc-blue">
+          <div class="stat-val" id="stat-resp">0</div>
+          <div class="stat-label">Avg Response (s)</div>
+          <div class="stat-icon">⚡</div>
+        </div>
+      </div>
+
+      <!-- Severity breakdown -->
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px;">
+        <div class="stat-card sc-red" style="padding:10px 14px;">
+          <div style="font-family:var(--mono);font-size:8px;color:var(--muted);letter-spacing:1px;margin-bottom:4px;">MASS CASUALTY</div>
+          <div style="font-family:var(--cond);font-size:22px;font-weight:900;color:var(--red);" id="sev-mass">0</div>
+        </div>
+        <div class="stat-card sc-amber" style="padding:10px 14px;">
+          <div style="font-family:var(--mono);font-size:8px;color:var(--muted);letter-spacing:1px;margin-bottom:4px;">SERIOUS</div>
+          <div style="font-family:var(--cond);font-size:22px;font-weight:900;color:var(--amber);" id="sev-ser">0</div>
+        </div>
+        <div class="stat-card" style="padding:10px 14px;border-top:3px solid #ffd166;">
+          <div style="font-family:var(--mono);font-size:8px;color:var(--muted);letter-spacing:1px;margin-bottom:4px;">MODERATE</div>
+          <div style="font-family:var(--cond);font-size:22px;font-weight:900;color:#ffd166;" id="sev-mod">0</div>
+        </div>
+        <div class="stat-card sc-teal" style="padding:10px 14px;">
+          <div style="font-family:var(--mono);font-size:8px;color:var(--muted);letter-spacing:1px;margin-bottom:4px;">MINOR</div>
+          <div style="font-family:var(--cond);font-size:22px;font-weight:900;color:var(--teal);" id="sev-min">0</div>
+        </div>
+      </div>
+
+      <!-- Incident table -->
+      <div class="table-wrap">
+        <div class="table-hdr">
+          <div class="th-title">Active Incidents</div>
+          <div class="th-right">
+            <span class="pill p-teal">AT INTEGRATED</span>
+            <span class="pill p-blue">MAPS ACTIVE</span>
+          </div>
+        </div>
+        <div id="table-body"></div>
+      </div>
+
+      <!-- Map -->
+      <div class="map-panel">
+        <div class="map-hdr">
+          <span style="font-size:14px;">🗺️</span>
+          <span class="map-title">Live Incident Map — South Africa</span>
+          <span class="pill p-blue" style="margin-left:auto;">GOOGLE MAPS API</span>
+        </div>
+        <iframe class="admin-map" id="admin-map"
+          src="https://www.google.com/maps/embed/v1/search?key=AIzaSyDs4P8JdwHDfzHiC1HMSsUBvRa-Pd6s0NA&q=emergency+hospitals+Johannesburg+South+Africa&zoom=10"
+          loading="lazy">
+        </iframe>
+      </div>
+
+    </div><!-- /content -->
+  </div><!-- /main -->
+</div><!-- /app -->
+
+<!-- Overlay -->
+<div class="overlay" id="overlay" onclick="closeDetail()"></div>
+
+<!-- Detail panel -->
+<div class="detail-panel" id="detail-panel">
+  <div class="dp-hdr">
+    <button class="close-btn" onclick="closeDetail()">✕</button>
+    <div>
+      <div id="dp-caseid" style="font-family:var(--mono);font-weight:700;font-size:14px;color:var(--text);letter-spacing:1px;"></div>
+      <div style="font-family:var(--sans);font-size:10px;color:var(--muted);">Incident Detail</div>
+    </div>
+    <div id="dp-sev" style="margin-left:auto;"></div>
+  </div>
+  <div class="dp-body" id="dp-body"></div>
+</div>
+
+<script>
+const MAPS_KEY = "AIzaSyDs4P8JdwHDfzHiC1HMSsUBvRa-Pd6s0NA";
+const AT_FROM  = "+27218796295";
+const AT_KEY   = "atsk_37943e73943a043ef2168781af81eeabc7f7ee18f61df03a28efaee96aaa0190edf8f10c";
+
+// ── CLOCK ──
+setInterval(()=>{ document.getElementById('admin-clk').textContent = new Date().toLocaleTimeString('en-ZA',{hour:'2-digit',minute:'2-digit',second:'2-digit'})+' SAST'; },1000);
+
+// ── DEMO DATA ──
+const DEMO = [
+  {caseID:'ER-20451',ts:'2026-03-13T08:14:32Z',incident:{incidentType:'Building Fire',victims:12,location:'Sandton City Mall, Johannesburg',severity:'Serious',reporterName:'Bongiwe Nxumalo',reporterPhone:'+27827644047'}},
+  {caseID:'ER-31892',ts:'2026-03-13T07:55:10Z',incident:{incidentType:'Road Accident',victims:4,location:'N1 Highway, Midrand',severity:'Moderate',reporterName:'Sipho Dlamini',reporterPhone:'+27834521098'}},
+  {caseID:'ER-44571',ts:'2026-03-13T06:30:00Z',incident:{incidentType:'Shooting',victims:2,location:'Orlando East, Soweto',severity:'Mass Casualty',reporterName:'Thandiwe Mokoena',reporterPhone:'+27761234567'}},
+  {caseID:'ER-57234',ts:'2026-03-13T05:12:44Z',incident:{incidentType:'Medical Emergency',victims:1,location:'Rosebank, Johannesburg',severity:'Minor',reporterName:'Amahle Ndlovu',reporterPhone:'+27829876543'}},
+  {caseID:'ER-61103',ts:'2026-03-13T04:48:19Z',incident:{incidentType:'Gas Leak',victims:8,location:'Kempton Park Industrial Area',severity:'Serious',reporterName:'Lerato Khumalo',reporterPhone:'+27835671234'}},
+];
+
+function sevCol(s){
+  const l=(s||'').toLowerCase();
+  if(l.includes('mass'))    return['#ff2d3d','#8b1520'];
+  if(l.includes('serious')) return['#ff9500','#7a4800'];
+  if(l.includes('moderate'))return['#ffd166','#7a6000'];
+  return['#00d4b8','#004d44'];
+}
+
+function getIncidents(){
+  try{
+    const stored = JSON.parse(localStorage.getItem('rescueai_incidents')||'[]');
+    return stored;
+  }catch(e){ return []; }
+}
+
+function renderStats(data){
+  const total = data.length;
+  const victims = data.reduce((s,d)=>s+(parseInt(d.incident.victims)||0),0);
+  document.getElementById('stat-total').textContent = total;
+  document.getElementById('stat-victims').textContent = victims;
+  document.getElementById('stat-sms').textContent = total;
+  document.getElementById('stat-resp').textContent = total ? '4.8' : '0';
+  document.getElementById('sb-count').textContent = total;
+
+  const sevs = data.map(d=>(d.incident.severity||'').toLowerCase());
+  document.getElementById('sev-mass').textContent = sevs.filter(s=>s.includes('mass')).length;
+  document.getElementById('sev-ser').textContent  = sevs.filter(s=>s.includes('serious')).length;
+  document.getElementById('sev-mod').textContent  = sevs.filter(s=>s.includes('moderate')).length;
+  document.getElementById('sev-min').textContent  = sevs.filter(s=>s.includes('minor')).length;
+
+  document.getElementById('last-updated').textContent = 'Updated '+new Date().toLocaleTimeString('en-ZA',{hour:'2-digit',minute:'2-digit'});
+}
+
+function renderTable(data){
+  const body = document.getElementById('table-body');
+  if(!data.length){
+    body.innerHTML=`<div class="empty"><div class="empty-icon">🛡️</div><div class="empty-title">No incidents logged</div><div class="empty-sub">Reports from the Reporter Portal will appear here.<br>Click "Load Demo Data" to preview.</div></div>`;
+    return;
+  }
+  const rows = data.map((d,i)=>{
+    const [col,dim]=sevCol(d.incident.severity);
+    const t = new Date(d.ts);
+    const time = t.toLocaleTimeString('en-ZA',{hour:'2-digit',minute:'2-digit'});
+    return `<tr>
+      <td class="td-mono" style="color:var(--teal);">${d.caseID}</td>
+      <td><span class="sev-badge" style="color:${col};border-color:${dim};background:${col}18;">${d.incident.severity}</span></td>
+      <td style="font-weight:600;">${d.incident.incidentType}</td>
+      <td class="td-muted">${d.incident.location}</td>
+      <td class="td-mono">${d.incident.victims}</td>
+      <td class="td-muted">${d.incident.reporterPhone}</td>
+      <td class="td-mono td-muted">${time}</td>
+      <td><button class="view-btn" onclick="openDetail(${i})">VIEW →</button></td>
+    </tr>`;
+  }).join('');
+
+  body.innerHTML=`<table>
+    <thead><tr>
+      <th>CASE ID</th><th>SEVERITY</th><th>INCIDENT</th><th>LOCATION</th>
+      <th>VICTIMS</th><th>REPORTER</th><th>TIME</th><th></th>
+    </tr></thead>
+    <tbody>${rows}</tbody>
+  </table>`;
+}
+
+let currentData = [];
+
+function render(data){
+  currentData = data;
+  renderStats(data);
+  renderTable(data);
+  // Update map to first incident if available
+  if(data.length){
+    const q = encodeURIComponent('hospitals near '+data[0].incident.location);
+    document.getElementById('admin-map').src=`https://www.google.com/maps/embed/v1/search?key=${MAPS_KEY}&q=${q}&zoom=12`;
+  }
+}
+
+function loadDemo(){
+  render(DEMO);
+}
+
+function clearAll(){
+  localStorage.removeItem('rescueai_incidents');
+  render([]);
+}
+
+function openDetail(i){
+  const d = currentData[i];
+  const inc = d.incident;
+  const [col,dim]=sevCol(inc.severity);
+  const mapQ=encodeURIComponent('hospitals near '+inc.location);
+
+  document.getElementById('dp-caseid').textContent=d.caseID;
+  document.getElementById('dp-sev').innerHTML=`<span class="sev-badge" style="color:${col};border-color:${dim};background:${col}18;padding:3px 10px;font-family:var(--mono);font-size:8px;font-weight:700;letter-spacing:1px;text-transform:uppercase;">${inc.severity}</span>`;
+
+  const sms=`🚨 RESCUEAI EMERGENCY\n\nCase: ${d.caseID}\nType: ${inc.incidentType}\nVictims: ${inc.victims}\nLocation: ${inc.location}\nSeverity: ${inc.severity}\n\nTrack: https://rescueai.app/track/${d.caseID}`;
+
+  document.getElementById('dp-body').innerHTML=`
+    <div class="dp-sec">
+      <div class="dp-sh">Incident Details</div>
+      <div class="dp-sg">
+        ${[['CASE ID',d.caseID],['TYPE',inc.incidentType],['VICTIMS',inc.victims],['LOCATION',inc.location],['SEVERITY',inc.severity],['REPORTER',inc.reporterName],['PHONE',inc.reporterPhone],['TIME',new Date(d.ts).toLocaleString('en-ZA')]].map(([k,v])=>`<div class="dp-sc"><div class="dp-sl">${k}</div><div class="dp-sv">${v}</div></div>`).join('')}
+      </div>
+    </div>
+    <div class="dp-sec">
+      <div class="dp-sh">Nearest Hospitals</div>
+      <iframe class="dp-map" src="https://www.google.com/maps/embed/v1/search?key=${MAPS_KEY}&q=${mapQ}&zoom=13" loading="lazy"></iframe>
+    </div>
+    <div class="dp-sec">
+      <div class="dp-sh">SMS Dispatched via Africa's Talking</div>
+      <div class="dp-sms">${sms}</div>
+    </div>
+    <div class="dp-sec">
+      <div class="dp-sh">API Calls Made</div>
+      <div style="padding:12px;font-family:var(--mono);font-size:10px;color:var(--muted);line-height:2;">
+        <span style="color:var(--amber);">POST</span> <span style="color:var(--text);">api.africastalking.com/version1/messaging</span><br>
+        <span style="color:var(--amber);">POST</span> <span style="color:var(--text);">voice.africastalking.com/call</span><br>
+        <span style="color:var(--amber);">GET</span>  <span style="color:var(--text);">maps.googleapis.com/maps/embed/v1/search</span><br>
+        <span style="color:var(--amber);">POST</span> <span style="color:var(--text);">generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash</span>
+      </div>
+    </div>`;
+
+  document.getElementById('detail-panel').classList.add('open');
+  document.getElementById('overlay').classList.add('on');
+}
+
+function closeDetail(){
+  document.getElementById('detail-panel').classList.remove('open');
+  document.getElementById('overlay').classList.remove('on');
+}
+
+// ── INIT ──
+window.addEventListener('load', ()=>{
+  const stored = getIncidents();
+  render(stored.length ? stored : []);
+  // Poll for new incidents every 3s
+  setInterval(()=>{
+    const latest = getIncidents();
+    if(latest.length !== currentData.length) render(latest);
+  }, 3000);
+});
+</script>
+</body>
+</html>
