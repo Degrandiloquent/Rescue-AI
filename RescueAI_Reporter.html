@@ -362,9 +362,9 @@ body::after {
     <span class="prog-lbl">INTAKE</span>
     <div class="prog-steps" id="psteps">
       <div class="ps cur"></div><div class="ps"></div><div class="ps"></div>
-      <div class="ps"></div><div class="ps"></div><div class="ps"></div>
+      <div class="ps"></div><div class="ps"></div>
     </div>
-    <span class="prog-n" id="pcount">0 / 6</span>
+    <span class="prog-n" id="pcount">0 / 5</span>
   </div>
 
   <div class="err-bar" id="errbar"></div>
@@ -447,17 +447,60 @@ const AT_FROM    = "+27218796295";
 
 // ── FALLBACK ──
 const SCRIPT = [
-  "Hello, I'm RescueAI. What type of emergency are you reporting?",
-  "Understood. How many people are affected or injured?",
-  "Thank you. What is the exact location? Please be as specific as possible.",
-  "Got it. How would you classify the severity — Minor, Moderate, Serious, or Mass Casualty?",
-  "Understood. Can I get your full name?",
-  "Almost done. What's your phone number so responders can reach you?",
+  "Hello! I'm RescueAI, I'm here to help. What is the nature of your emergency?",
+  "Okay, I understand. Approximately how many victims are involved in this situation?",
+  "On a scale of low, medium, or high, how would you describe the severity of the situation?",
 ];
-const FIELDS = ["incidentType","victims","location","severity","reporterName","reporterPhone"];
+const SCRIPT_LOCATION = "To help us dispatch assistance, can you please provide the exact location of the emergency? Please provide an address or describe the location as accurately as possible.";
+const SCRIPT_PHONE    = "What cellphone number should we send your reference number and updates to?";
+
+function getFirstAid(incidentType) {
+  const t = (incidentType || '').toLowerCase();
+  if (t.includes('fire') || t.includes('burn'))
+    return "🔥 First Aid — Fire/Burns: Move victims away from flames immediately. Do NOT apply ice to burns — use cool running water for 10 minutes. Cover loosely with a clean cloth. Do not remove clothing stuck to burns.";
+  if (t.includes('accident') || t.includes('crash') || t.includes('car') || t.includes('vehicle') || t.includes('road'))
+    return "🚗 First Aid — Road Accident: Do NOT move victims unless there is immediate danger. Keep them still and warm. If conscious, keep them talking and calm. Apply pressure to any visible bleeding with a clean cloth.";
+  if (t.includes('shoot') || t.includes('stab') || t.includes('wound') || t.includes('bleed'))
+    return "🩸 First Aid — Bleeding: Apply firm, direct pressure to the wound with a clean cloth. Do NOT remove the cloth — add more on top if soaked. Keep the victim still, warm, and calm.";
+  if (t.includes('unconscious') || t.includes('collapse') || t.includes('faint') || t.includes('heart'))
+    return "🫀 First Aid — Unconscious/Cardiac: Tilt head back gently to open the airway. Check for breathing. If not breathing and you know CPR — 30 chest compressions, 2 rescue breaths. Keep going until help arrives.";
+  if (t.includes('drown') || t.includes('water'))
+    return "💧 First Aid — Drowning: Remove the person from water safely. Tilt head back, check breathing. If not breathing, begin CPR immediately — 30 compressions, 2 breaths. Keep them warm.";
+  if (t.includes('poison') || t.includes('chemical') || t.includes('gas') || t.includes('inhale'))
+    return "☠️ First Aid — Poisoning/Gas: Move victims to fresh air immediately. Do NOT induce vomiting. Keep the person awake and breathing. Note what substance was involved if possible.";
+  // Generic first aid for any other emergency
+  return "⚠️ First Aid: Keep the victim calm and still. Do not move them unless there is immediate danger. Apply pressure to any bleeding with a clean cloth. Keep them warm and talking if conscious.";
+}
 const collected = {};
 let scriptStep=0, useScript=false, history=[], busy=false, fieldsDone=0;
 let inputMode = 'text';
+let pendingInc = null;
+let correctingField = null; // which field we're currently correcting
+
+const FIELD_QUESTIONS = {
+  incidentType:  "What is the correct nature of the emergency?",
+  victims:       "How many victims are involved?",
+  severity:      "On a scale of low, medium, or high — what is the correct severity?",
+  location:      "What is the correct location of the emergency? Please be as specific as possible.",
+  reporterPhone: "What is the correct cellphone number?"
+};
+
+function detectField(text) {
+  const t = text.toLowerCase();
+  if (t.includes('nature') || t.includes('emergency') || t.includes('type') || t.includes('incident')) return 'incidentType';
+  if (t.includes('victim') || t.includes('people') || t.includes('number of') || t.includes('how many')) return 'victims';
+  if (t.includes('sever') || t.includes('scale') || t.includes('level') || t.includes('high') || t.includes('low') || t.includes('medium')) return 'severity';
+  if (t.includes('location') || t.includes('address') || t.includes('where') || t.includes('place')) return 'location';
+  if (t.includes('cell') || t.includes('phone') || t.includes('number') || t.includes('contact') || t.includes('mobile')) return 'reporterPhone';
+  return null;
+}
+
+function reConfirm() {
+  const inc = pendingInc;
+  const msg = `Okay, let me confirm the updated information: You are reporting a ${inc.incidentType} with ${inc.victims} victim(s), severity is ${inc.severity}, at ${inc.location}. Updates will be sent to ${inc.reporterPhone}. Is this correct?`;
+  addMsg('ai', msg);
+  showConfirmButtons();
+}
 
 // ── WEB SPEECH ──
 let recognition = null;
@@ -544,16 +587,71 @@ function updateProg(n) {
   document.querySelectorAll('.ps').forEach((s,i)=>{
     s.className='ps'; if(i<n) s.classList.add('done'); else if(i===n) s.classList.add('cur');
   });
-  document.getElementById('pcount').textContent = n+' / 6';
+  document.getElementById('pcount').textContent = n+' / 5';
 }
 
 // ── GEMINI ──
-const SYSTEM = `You are RescueAI, a calm emergency intake agent in South Africa.
-Collect these 6 fields ONE at a time:
-1. incidentType 2. victims 3. location 4. severity (Minor|Moderate|Serious|Mass Casualty) 5. reporterName 6. reporterPhone
-- Greet warmly, ask one question at a time, be calm and brief.
-- When ALL 6 confirmed output EXACTLY: <JSON>{"incidentType":"...","victims":N,"location":"...","severity":"...","reporterName":"...","reporterPhone":"..."}</JSON>
-Then say responders are being dispatched.`;
+const SYSTEM = `You are RescueAI, a calm and professional emergency intake agent in South Africa. Follow these steps EXACTLY in order, one at a time:
+
+STEP 1 — GREETING:
+Greet the user warmly and ask about the nature of their emergency.
+Example: "Hello! I'm RescueAI, I'm here to help. What is the nature of your emergency?"
+
+STEP 2 — NUMBER OF VICTIMS:
+Once the user describes the emergency, ask how many victims are involved.
+Example: "Okay, I understand. Approximately how many victims are involved in this situation?"
+
+STEP 3 — SEVERITY:
+Ask about the severity. Give exactly three options: low, medium, or high.
+Example: "On a scale of low, medium, or high, how would you describe the severity of the situation?"
+
+STEP 4 — FIRST AID (ONLY for medium or high severity):
+- If severity is LOW → skip this step entirely. Go straight to Step 5.
+- If severity is MEDIUM or HIGH → you MUST provide first aid guidance immediately before asking for location. Base it on the type of emergency:
+  * Fire/Burns → move away from flames, cool water on burns for 10 mins, cover loosely, do not remove stuck clothing
+  * Road accident/Car crash → do NOT move victims, keep still and warm, apply pressure to bleeding
+  * Shooting/Stabbing/Bleeding → firm pressure on wound with clean cloth, do not remove it, keep victim still
+  * Unconscious/Cardiac/Collapse → tilt head back, check breathing, CPR if needed (30 compressions, 2 breaths)
+  * Drowning → remove from water safely, check breathing, CPR if not breathing
+  * Poisoning/Gas/Chemical → move to fresh air, do NOT induce vomiting, keep awake
+  * Any other → keep victim calm and still, do not move unless danger, apply pressure to bleeding, keep warm
+  After giving first aid, say "Now, to help us dispatch assistance..." and ask for the location.
+
+STEP 5 — LOCATION:
+Ask for the exact location of the emergency.
+Example: "To help us dispatch assistance, can you please provide the exact location of the emergency? Please provide an address or describe the location as accurately as possible."
+
+STEP 6 — PHONE NUMBER:
+Ask for the reporter's cellphone number so the reference number and updates can be sent via SMS.
+Example: "What cellphone number should we send your reference number and updates to?"
+
+STEP 7 — CONFIRMATION:
+Repeat all gathered information back to the user for confirmation.
+Example: "Okay, let me confirm: You are reporting a [nature of emergency] with [number] victims, severity is [level], at [location]. Your reference number and updates will be sent to [phone number]. Is this correct?"
+
+STEP 8 — CORRECTION OR DISPATCH:
+- If the user says YES or confirms → output EXACTLY:
+<JSON>{"incidentType":"...","victims":N,"location":"...","severity":"...","reporterPhone":"..."}</JSON>
+Then say: "Your emergency has been logged. Help is being dispatched immediately. You will receive a confirmation SMS shortly. Stay calm."
+
+- If the user says NO → ask: "No problem. Which part would you like to correct? Is it the nature of emergency, number of victims, severity, location, or cellphone number?"
+
+- Once the user tells you which field to correct, ask ONLY that one question again. For example:
+  - If they say "location" → ask: "What is the correct location of the emergency?"
+  - If they say "nature of emergency" or "type" → ask: "What is the correct nature of the emergency?"
+  - If they say "victims" or "number" → ask: "How many victims are involved?"
+  - If they say "severity" or "scale" → ask: "On a scale of low, medium, or high — what is the correct severity?"
+  - If they say "cellphone" or "number" or "phone" → ask: "What is the correct cellphone number?"
+
+- After they provide the correction, update that field and go back to Step 7 — re-confirm ALL information again with the updated field included.
+- Keep doing this loop until the user says YES.
+- NEVER output the JSON until the user explicitly says YES.
+
+RULES:
+- Ask ONE question at a time. Never combine questions.
+- Be calm, clear, and reassuring at all times.
+- Do NOT output the JSON until the user explicitly confirms in Step 7.
+- Always show empathy — people contacting you are in distress.`;
 
 async function callGemini(text) {
   history.push({role:'user',parts:[{text}]});
@@ -573,18 +671,46 @@ async function callGemini(text) {
 }
 
 function scriptedReply(text) {
-  if(scriptStep>0&&scriptStep<=FIELDS.length) collected[FIELDS[scriptStep-1]]=text;
-  if(scriptStep<SCRIPT.length){ updateProg(scriptStep); return SCRIPT[scriptStep++]; }
-  updateProg(6);
-  const inc={
-    incidentType: collected.incidentType||'Building Fire',
-    victims:      collected.victims||'8',
-    location:     collected.location||'Sandton City Mall, Johannesburg',
-    severity:     collected.severity||'Serious',
-    reporterName: collected.reporterName||'Bongiwe Nxumalo',
-    reporterPhone:collected.reporterPhone||'+27827644047',
+  if(scriptStep > 0 && scriptStep <= FIELDS.length) collected[FIELDS[scriptStep-1]] = text;
+
+  // Step 0→1→2: greeting, victims, severity
+  if(scriptStep < SCRIPT.length) {
+    updateProg(scriptStep);
+    return SCRIPT[scriptStep++];
+  }
+
+  // Step 3: after severity — check if medium or high
+  if(scriptStep === SCRIPT.length) {
+    scriptStep++;
+    const sev = (collected.severity || '').toLowerCase();
+    const needsFirstAid = sev.includes('medium') || sev.includes('high');
+    if(needsFirstAid) {
+      updateProg(3);
+      const aid = getFirstAid(collected.incidentType || '');
+      return aid + "\n\nNow, " + SCRIPT_LOCATION;
+    } else {
+      updateProg(3);
+      return SCRIPT_LOCATION;
+    }
+  }
+
+  // Step 4: after location → ask phone
+  if(scriptStep === SCRIPT.length + 1) {
+    scriptStep++;
+    updateProg(4);
+    return SCRIPT_PHONE;
+  }
+
+  // Step 5: all collected → confirm
+  updateProg(5);
+  const inc = {
+    incidentType:  collected.incidentType  || 'Road Accident',
+    victims:       collected.victims       || '3',
+    severity:      collected.severity      || 'low',
+    location:      collected.location      || 'Sandton City Mall, Johannesburg',
+    reporterPhone: collected.reporterPhone || '+27827644047',
   };
-  return `<JSON>${JSON.stringify(inc)}</JSON>\nYour emergency has been logged. Responders are being dispatched and nearby hospitals located.`;
+  return `Okay, let me confirm: You are reporting a ${inc.incidentType} with ${inc.victims} victim(s), severity is ${inc.severity}, at ${inc.location}. Your reference number and updates will be sent to ${inc.reporterPhone}. Is this correct? <JSON>${JSON.stringify(inc)}</JSON>`;
 }
 
 // ── DOM ──
@@ -622,43 +748,146 @@ function showErr(msg){
 }
 
 async function processReply(text){
-  addMsg('ai',text);
-  if(!useScript) updateProg(Math.min(fieldsDone+1,6));
-  const m=text.match(/<JSON>([\s\S]*?)<\/JSON>/);
-  if(m){
-    try{
-      const inc=JSON.parse(m[1]);
-      const caseID='ER-'+Math.floor(10000+Math.random()*90000);
-      addSys('DISPATCHING RESPONDERS...');
-      // Save to cloud for real-time admin sync
-      await saveToCloud({caseID, incident:inc, ts: new Date().toISOString()});
-      setTimeout(()=>showConfirmation(caseID, inc), 1200);
-    }catch(e){}
+  const m = text.match(/<JSON>([\s\S]*?)<\/JSON>/);
+  if (m) {
+    try {
+      pendingInc = JSON.parse(m[1]);
+      const confirmText = text.replace(/<JSON>[\s\S]*?<\/JSON>/g,'').trim();
+      addMsg('ai', confirmText || `Okay, let me confirm: You are reporting a ${pendingInc.incidentType} with ${pendingInc.victims} victim(s), severity is ${pendingInc.severity}, at ${pendingInc.location}. Your updates will be sent to ${pendingInc.reporterPhone}. Is this correct?`);
+      showConfirmButtons();
+    } catch(e) {}
+    return;
   }
+
+  // ── CORRECTION FLOW ──
+  // Step A: we're waiting for which field to correct
+  if (pendingInc && !correctingField) {
+    const lower = text.toLowerCase().trim();
+    const isYes = lower === 'yes' || lower === 'y' || lower === 'correct' || lower === 'yep' || lower === 'ja' || lower.startsWith('yes');
+    const isNo  = lower === 'no'  || lower === 'n' || lower === 'nope' || lower === 'wrong' || lower.startsWith('no');
+
+    if (isYes) {
+      hideConfirmButtons();
+      submitCase(pendingInc);
+      pendingInc = null;
+      return;
+    }
+    if (isNo) {
+      hideConfirmButtons();
+      await delay(600);
+      addMsg('ai', 'No problem. Which part would you like to correct? Is it the nature of emergency, the number of victims, severity, location, or cellphone number?');
+      return;
+    }
+    // Try to detect which field they want to fix
+    const field = detectField(text);
+    if (field) {
+      correctingField = field;
+      await delay(500);
+      addMsg('ai', FIELD_QUESTIONS[field]);
+      return;
+    }
+    // Can't detect — ask again
+    await delay(500);
+    addMsg('ai', 'I want to make sure I correct the right thing. Is it the nature of emergency, number of victims, severity, location, or cellphone number?');
+    return;
+  }
+
+  // Step B: we have the field — get the new value
+  if (pendingInc && correctingField) {
+    pendingInc[correctingField] = text.trim();
+    correctingField = null;
+    await delay(600);
+    reConfirm();
+    return;
+  }
+
+  addMsg('ai', text);
+  if(!useScript) updateProg(Math.min(fieldsDone+1, 5));
+}
+
+function showConfirmButtons() {
+  const msgs = document.getElementById('msgs');
+  const existing = document.getElementById('confirm-btns');
+  if (existing) existing.remove();
+  const btn = document.createElement('div');
+  btn.id = 'confirm-btns';
+  btn.style.cssText = 'display:flex;gap:10px;align-self:flex-start;margin:4px 14px;animation:fadeUp .25s ease both;';
+  btn.innerHTML = `
+    <button onclick="handleConfirm(true)" style="padding:10px 28px;background:var(--teal);color:#000;border:none;font-family:var(--cond);font-size:14px;font-weight:900;letter-spacing:2px;cursor:pointer;clip-path:polygon(8px 0%,100% 0%,calc(100% - 8px) 100%,0% 100%);">✓ YES</button>
+    <button onclick="handleConfirm(false)" style="padding:10px 28px;background:var(--card);color:var(--text);border:1px solid var(--border);font-family:var(--cond);font-size:14px;font-weight:900;letter-spacing:2px;cursor:pointer;clip-path:polygon(8px 0%,100% 0%,calc(100% - 8px) 100%,0% 100%);">✗ NO</button>`;
+  msgs.appendChild(btn);
+  msgs.scrollTop = msgs.scrollHeight;
+}
+
+function hideConfirmButtons() {
+  const btn = document.getElementById('confirm-btns');
+  if (btn) btn.remove();
+}
+
+async function handleConfirm(yes) {
+  hideConfirmButtons();
+  if (yes) {
+    addMsg('user', 'Yes, that is correct ✓');
+    submitCase(pendingInc);
+    pendingInc = null;
+    correctingField = null;
+  } else {
+    addMsg('user', 'No, that is not correct.');
+    // Keep pendingInc, reset correctingField
+    correctingField = null;
+    await delay(600);
+    addMsg('ai', 'No problem. Which part would you like to correct? Is it the nature of emergency, the number of victims, severity, location, or cellphone number?');
+  }
+}
+
+async function submitCase(inc) {
+  const caseID = 'ER-' + Math.floor(10000 + Math.random() * 90000);
+  addSys('DISPATCHING RESPONDERS...');
+  await saveToCloud({caseID, incident:inc, ts: new Date().toISOString()});
+  setTimeout(() => showConfirmation(caseID, inc), 1200);
 }
 
 async function sendText(text) {
   if (!text.trim() || busy) return;
-  busy=true;
-  // Clear voice transcript
-  document.getElementById('vtranscript').textContent='';
-  document.getElementById('vtranscript').className='voice-transcript';
-  addMsg('user',text);
+  busy = true;
+  document.getElementById('vtranscript').textContent = '';
+  document.getElementById('vtranscript').className = 'voice-transcript';
+  addMsg('user', text);
   setLoad(true);
 
-  if(useScript){
-    await delay(900);
-    processReply(scriptedReply(text));
-  } else {
-    try{
-      processReply(await callGemini(text));
-    }catch(e){
-      useScript=true;
-      await delay(800);
-      processReply(scriptedReply(text));
+  try {
+    // ── CORRECTION MODE: bypass Gemini entirely ──
+    if (pendingInc !== null) {
+      await delay(600);
+      await processReply(text);
+      return;
     }
+
+    // ── NORMAL INTAKE MODE ──
+    if (useScript) {
+      await delay(700);
+      await processReply(scriptedReply(text));
+    } else {
+      try {
+        const reply = await callGemini(text);
+        await processReply(reply);
+      } catch(e) {
+        console.warn('Gemini failed, switching to script:', e.message);
+        useScript = true;
+        // Sync scriptStep based on how far we are in history
+        const fieldsFilledSoFar = Math.round(history.length / 2);
+        if (scriptStep < fieldsFilledSoFar) scriptStep = fieldsFilledSoFar;
+        await delay(700);
+        await processReply(scriptedReply(text));
+      }
+    }
+  } catch(e) {
+    console.error('sendText error:', e.message);
+    addMsg('ai', "I'm here to help. Please try again.");
+  } finally {
+    setLoad(false);
+    busy = false;
   }
-  setLoad(false); busy=false;
 }
 
 async function send(){
@@ -673,17 +902,20 @@ async function startChat(){
   goTo('chat');
   document.getElementById('msgs').innerHTML='';
   history=[];scriptStep=0;useScript=false;fieldsDone=0;
+  pendingInc=null; correctingField=null;
+  Object.keys(collected).forEach(k=>delete collected[k]);
   updateProg(0); setMode('text');
   busy=true; setLoad(true);
   addSys('SECURE CHANNEL ESTABLISHED — GEMINI AI ACTIVE');
   try{
-    processReply(await callGemini('Hello, I need to report an emergency.'));
+    await processReply(await callGemini('Hello, I need to report an emergency.'));
   }catch(e){
     useScript=true;
     await delay(1000);
-    processReply(SCRIPT[scriptStep++]);
+    await processReply(SCRIPT[scriptStep++]);
+  }finally{
+    setLoad(false); busy=false;
   }
-  setLoad(false); busy=false;
 }
 
 const delay=ms=>new Promise(r=>setTimeout(r,ms));
@@ -737,10 +969,12 @@ function showConfirmation(caseID, inc) {
   sendRealSMS(inc.reporterPhone, caseID, inc).then(sent => {
     const smsEl = document.getElementById('sms-status-'+caseID);
     if (smsEl) {
-      smsEl.textContent = sent
-        ? '📱 Confirmation SMS sent to ' + inc.reporterPhone
-        : '📱 SMS queued (start sms-server.js for live SMS)';
-      smsEl.style.color = sent ? 'var(--teal)' : 'var(--muted)';
+      if (sent) {
+        smsEl.textContent = '📱 Confirmation SMS sent to ' + inc.reporterPhone;
+        smsEl.style.color = 'var(--teal)';
+      } else {
+        smsEl.style.display = 'none';
+      }
     }
   });
 
@@ -749,17 +983,14 @@ function showConfirmation(caseID, inc) {
   card.style.cssText = 'margin:10px 0;animation:fadeUp .3s ease both;';
   card.innerHTML = `
     <div style="background:#00d4b808;border:1px solid var(--teal-d);border-left:3px solid var(--teal);padding:16px 18px;">
-      <div style="font-family:var(--mono);font-size:9px;color:var(--teal);letter-spacing:2px;margin-bottom:10px;">✓ CASE RECORDED</div>
-      <div style="font-family:var(--cond);font-size:26px;font-weight:900;color:var(--text);margin-bottom:12px;">${caseID}</div>
-      <div style="font-family:var(--mono);font-size:9px;color:var(--teal);margin-bottom:8px;">
-        🔗 Track: rescueai.app/track/${caseID}
-      </div>
+      <div style="font-family:var(--mono);font-size:9px;color:var(--teal);letter-spacing:2px;margin-bottom:10px;">✓ EMERGENCY LOGGED</div>
       <div id="sms-status-${caseID}" style="font-family:var(--mono);font-size:9px;color:var(--muted);">
         📱 Sending confirmation SMS...
       </div>
     </div>
-    <div style="margin-top:8px;padding:10px 14px;background:var(--card);border:1px solid var(--border);font-family:var(--sans);font-size:13px;color:var(--muted);line-height:1.6;">
-      Stay calm. Help is on the way. Keep your phone on — responders may call <strong style="color:var(--text);">${inc.reporterPhone}</strong>.
+    <div style="margin-top:8px;padding:12px 14px;background:var(--card);border:1px solid var(--teal-d);border-left:3px solid var(--teal);font-family:var(--sans);font-size:13px;color:var(--text);line-height:1.7;">
+      Your reference number and updates — including your tracking link — will be sent to <strong style="color:var(--text);">${inc.reporterPhone}</strong> via SMS.<br>
+      <span style="color:var(--muted);font-size:12px;">Stay calm. Help is on the way. Keep your phone available.</span>
     </div>`;
   msgs.appendChild(card);
   msgs.scrollTop = msgs.scrollHeight;
