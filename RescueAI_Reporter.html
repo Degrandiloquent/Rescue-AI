@@ -414,7 +414,32 @@ body::after {
 </div>
 
 <script>
-const GEMINI_KEY = "AIzaSyB1qFKtKkHgC7WZaFKWE4hkODNm8VifswA";
+const JSONBIN_KEY = "$2a$10$z5kBb1Ld2d59R1beZVfw9e2DgBC7z5Xi3a/u8sI.4Z8Qb5.2/A3W.";
+const JSONBIN_BIN = "69b55651c3097a1dd52498b5";
+
+async function saveToCloud(newEntry) {
+  try {
+    // First get existing incidents
+    const getRes = await fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_BIN}/latest`, {
+      headers: { "X-Master-Key": JSONBIN_KEY }
+    });
+    const getData = await getRes.json();
+    const existing = getData.record?.incidents || [];
+    existing.unshift(newEntry);
+
+    // Then update
+    await fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_BIN}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Master-Key": JSONBIN_KEY
+      },
+      body: JSON.stringify({ incidents: existing })
+    });
+  } catch(e) {
+    console.warn("Cloud sync failed:", e.message);
+  }
+}
 const MAPS_KEY   = "AIzaSyDs4P8JdwHDfzHiC1HMSsUBvRa-Pd6s0NA";
 const AT_KEY     = "atsk_421a93ad27315ef4ba93c320f6a279d8b25f0f314f9c65bd2f1ee3a05631499eed0952a5";
 const AT_USER    = "xihluke";
@@ -606,9 +631,7 @@ function processReply(text){
       const caseID='ER-'+Math.floor(10000+Math.random()*90000);
       addSys('DISPATCHING RESPONDERS...');
       // Save to localStorage for admin
-      const prev = JSON.parse(localStorage.getItem('rescueai_incidents')||'[]');
-      prev.unshift({caseID, incident:inc, ts: new Date().toISOString()});
-      localStorage.setItem('rescueai_incidents', JSON.stringify(prev));
+      await saveToCloud({caseID, incident:inc, ts: new Date().toISOString()});
       setTimeout(()=>showConfirmation(caseID, inc), 1200);
     }catch(e){}
   }
