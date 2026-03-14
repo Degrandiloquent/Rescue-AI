@@ -948,7 +948,7 @@ Track: rescueai.app/track/${caseID}
 — RescueAI Emergency System`;
 
   try {
-    const res = await fetch("http://localhost:3333/send-sms", {
+    const res = await fetch("https://rescueai-sms-production.up.railway.app/send-sms", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ to, message })
