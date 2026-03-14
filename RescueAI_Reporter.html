@@ -450,29 +450,31 @@ const SCRIPT = [
   "Hello! I'm RescueAI, I'm here to help. What is the nature of your emergency?",
   "Okay, I understand. Approximately how many victims are involved in this situation?",
   "On a scale of low, medium, or high, how would you describe the severity of the situation?",
+  "To help us dispatch assistance, can you please provide the exact location of the emergency? Please provide an address or describe the location as accurately as possible.",
+  "What cellphone number should we send your reference number and updates to?",
 ];
-const SCRIPT_LOCATION = "To help us dispatch assistance, can you please provide the exact location of the emergency? Please provide an address or describe the location as accurately as possible.";
-const SCRIPT_PHONE    = "What cellphone number should we send your reference number and updates to?";
+const FIELDS = ["incidentType","victims","severity","location","reporterPhone"];
 
-function getFirstAid(incidentType) {
-  const t = (incidentType || '').toLowerCase();
-  if (t.includes('fire') || t.includes('burn'))
-    return "🔥 First Aid — Fire/Burns: Move victims away from flames immediately. Do NOT apply ice to burns — use cool running water for 10 minutes. Cover loosely with a clean cloth. Do not remove clothing stuck to burns.";
-  if (t.includes('accident') || t.includes('crash') || t.includes('car') || t.includes('vehicle') || t.includes('road'))
-    return "🚗 First Aid — Road Accident: Do NOT move victims unless there is immediate danger. Keep them still and warm. If conscious, keep them talking and calm. Apply pressure to any visible bleeding with a clean cloth.";
-  if (t.includes('shoot') || t.includes('stab') || t.includes('wound') || t.includes('bleed'))
-    return "🩸 First Aid — Bleeding: Apply firm, direct pressure to the wound with a clean cloth. Do NOT remove the cloth — add more on top if soaked. Keep the victim still, warm, and calm.";
-  if (t.includes('unconscious') || t.includes('collapse') || t.includes('faint') || t.includes('heart'))
-    return "🫀 First Aid — Unconscious/Cardiac: Tilt head back gently to open the airway. Check for breathing. If not breathing and you know CPR — 30 chest compressions, 2 rescue breaths. Keep going until help arrives.";
-  if (t.includes('drown') || t.includes('water'))
-    return "💧 First Aid — Drowning: Remove the person from water safely. Tilt head back, check breathing. If not breathing, begin CPR immediately — 30 compressions, 2 breaths. Keep them warm.";
-  if (t.includes('poison') || t.includes('chemical') || t.includes('gas') || t.includes('inhale'))
-    return "☠️ First Aid — Poisoning/Gas: Move victims to fresh air immediately. Do NOT induce vomiting. Keep the person awake and breathing. Note what substance was involved if possible.";
-  // Generic first aid for any other emergency
+function getFirstAid(type, sev) {
+  const s = (sev||'').toLowerCase();
+  if(!s.includes('medium') && !s.includes('high')) return null;
+  const t = (type||'').toLowerCase();
+  if(t.includes('fire')||t.includes('burn'))
+    return "🔥 First Aid — Fire/Burns: Move victims away from flames immediately. Do NOT apply ice — use cool running water for 10 minutes. Cover loosely with a clean cloth. Do not remove clothing stuck to burns.";
+  if(t.includes('accident')||t.includes('crash')||t.includes('car')||t.includes('vehicle')||t.includes('road'))
+    return "🚗 First Aid — Road Accident: Do NOT move victims unless there is immediate danger. Keep them still and warm. If conscious, keep them talking. Apply pressure to any visible bleeding with a clean cloth.";
+  if(t.includes('shoot')||t.includes('stab')||t.includes('wound')||t.includes('bleed'))
+    return "🩸 First Aid — Bleeding: Apply firm direct pressure to the wound with a clean cloth. Do NOT remove it — add more on top if soaked. Keep the victim still, warm, and calm.";
+  if(t.includes('unconscious')||t.includes('collapse')||t.includes('faint')||t.includes('heart'))
+    return "🫀 First Aid — Cardiac/Unconscious: Tilt head back gently to open the airway. Check for breathing. If not breathing and you know CPR — 30 chest compressions, 2 rescue breaths. Keep going until help arrives.";
+  if(t.includes('drown')||t.includes('water'))
+    return "💧 First Aid — Drowning: Remove the person from water safely. Tilt head back, check breathing. If not breathing, begin CPR — 30 compressions, 2 breaths. Keep them warm.";
+  if(t.includes('poison')||t.includes('chemical')||t.includes('gas'))
+    return "☠️ First Aid — Poisoning/Gas: Move victims to fresh air immediately. Do NOT induce vomiting. Keep the person awake and breathing.";
   return "⚠️ First Aid: Keep the victim calm and still. Do not move them unless there is immediate danger. Apply pressure to any bleeding with a clean cloth. Keep them warm and talking if conscious.";
 }
-const collected = {};
 let scriptStep=0, useScript=false, history=[], busy=false, fieldsDone=0;
+const collected = {};
 let inputMode = 'text';
 let pendingInc = null;
 let correctingField = null; // which field we're currently correcting
@@ -673,35 +675,17 @@ async function callGemini(text) {
 function scriptedReply(text) {
   if(scriptStep > 0 && scriptStep <= FIELDS.length) collected[FIELDS[scriptStep-1]] = text;
 
-  // Step 0→1→2: greeting, victims, severity
-  if(scriptStep < SCRIPT.length) {
+  // After severity is collected (scriptStep === 3), check for first aid
+  if(scriptStep === 3) {
+    const aid = getFirstAid(collected.incidentType, collected.severity || text);
     updateProg(scriptStep);
-    return SCRIPT[scriptStep++];
-  }
-
-  // Step 3: after severity — check if medium or high
-  if(scriptStep === SCRIPT.length) {
     scriptStep++;
-    const sev = (collected.severity || '').toLowerCase();
-    const needsFirstAid = sev.includes('medium') || sev.includes('high');
-    if(needsFirstAid) {
-      updateProg(3);
-      const aid = getFirstAid(collected.incidentType || '');
-      return aid + "\n\nNow, " + SCRIPT_LOCATION;
-    } else {
-      updateProg(3);
-      return SCRIPT_LOCATION;
-    }
+    const locationQ = "To help us dispatch assistance, can you please provide the exact location of the emergency? Please provide an address or describe the location as accurately as possible.";
+    if(aid) return aid + "\n\nNow, " + locationQ;
+    return locationQ;
   }
 
-  // Step 4: after location → ask phone
-  if(scriptStep === SCRIPT.length + 1) {
-    scriptStep++;
-    updateProg(4);
-    return SCRIPT_PHONE;
-  }
-
-  // Step 5: all collected → confirm
+  if(scriptStep < SCRIPT.length) { updateProg(scriptStep); return SCRIPT[scriptStep++]; }
   updateProg(5);
   const inc = {
     incidentType:  collected.incidentType  || 'Road Accident',
@@ -802,7 +786,18 @@ async function processReply(text){
   }
 
   addMsg('ai', text);
-  if(!useScript) updateProg(Math.min(fieldsDone+1, 5));
+  fieldsDone = Math.min(fieldsDone + 1, 5);
+  if(!useScript) updateProg(fieldsDone);
+
+  // After severity step (step 3) — inject first aid if medium or high
+  if(fieldsDone === 3) {
+    const sev = collected.severity || '';
+    const aid = getFirstAid(collected.incidentType || '', sev);
+    if(aid) {
+      await delay(800);
+      addMsg('ai', aid + "\n\nNow, to help us dispatch assistance — can you please provide the exact location of the emergency?");
+    }
+  }
 }
 
 function showConfirmButtons() {
@@ -856,7 +851,16 @@ async function sendText(text) {
   setLoad(true);
 
   try {
-    // ── CORRECTION MODE: bypass Gemini entirely ──
+    // Track user answers into collected (works for both Gemini and script mode)
+  if(!pendingInc) {
+    if(fieldsDone === 0) collected.incidentType = text;
+    else if(fieldsDone === 1) collected.victims = text;
+    else if(fieldsDone === 2) collected.severity = text;
+    else if(fieldsDone === 3) collected.location = text;
+    else if(fieldsDone === 4) collected.reporterPhone = text;
+  }
+
+  // ── CORRECTION MODE: bypass Gemini entirely ──
     if (pendingInc !== null) {
       await delay(600);
       await processReply(text);
@@ -902,6 +906,7 @@ async function startChat(){
   goTo('chat');
   document.getElementById('msgs').innerHTML='';
   history=[];scriptStep=0;useScript=false;fieldsDone=0;
+  Object.keys(collected).forEach(k=>delete collected[k]);
   pendingInc=null; correctingField=null;
   Object.keys(collected).forEach(k=>delete collected[k]);
   updateProg(0); setMode('text');
