@@ -1,1 +1,1 @@
-{"rewrites":[{"source":"/","destination":"/RescueAI_Reporter.html"},{"source":"/admin","destination":"/RescueAI_Admin.html"}]}
+{"version":2,"builds":[{"src":"*.html","use":"@vercel/static"}],"routes":[{"src":"/admin","dest":"/RescueAI_Admin.html"},{"src":"/","dest":"/RescueAI_Reporter.html"}]}
