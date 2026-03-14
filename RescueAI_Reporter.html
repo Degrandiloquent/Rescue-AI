@@ -621,7 +621,7 @@ function showErr(msg){
   setTimeout(()=>e.className='err-bar',5000);
 }
 
-function processReply(text){
+async function processReply(text){
   addMsg('ai',text);
   if(!useScript) updateProg(Math.min(fieldsDone+1,6));
   const m=text.match(/<JSON>([\s\S]*?)<\/JSON>/);
@@ -630,7 +630,7 @@ function processReply(text){
       const inc=JSON.parse(m[1]);
       const caseID='ER-'+Math.floor(10000+Math.random()*90000);
       addSys('DISPATCHING RESPONDERS...');
-      // Save to localStorage for admin
+      // Save to cloud for real-time admin sync
       await saveToCloud({caseID, incident:inc, ts: new Date().toISOString()});
       setTimeout(()=>showConfirmation(caseID, inc), 1200);
     }catch(e){}
