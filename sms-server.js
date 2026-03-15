@@ -3,7 +3,7 @@ const https = require("https");
 const qs = require("querystring");
 
 const AT_KEY  = "atsk_421a93ad27315ef4ba93c320f6a279d8b25f0f314f9c65bd2f1ee3a05631499eed0952a5";
-const AT_USER = "ATDigital";
+const AT_USER = "xihluke";
 const PORT    = process.env.PORT || 3333;
 
 const server = http.createServer((req, res) => {
@@ -26,7 +26,7 @@ const server = http.createServer((req, res) => {
       try {
         const { to, message } = JSON.parse(body);
         console.log(`\n📡 Sending SMS to ${to}...`);
-        const payload = qs.stringify({ username: AT_USER, to, message });
+        const payload = qs.stringify({ username: AT_USER, to, message, from: "ATDigital" });
         const options = {
           hostname: "api.africastalking.com",
           path: "/version1/messaging",
