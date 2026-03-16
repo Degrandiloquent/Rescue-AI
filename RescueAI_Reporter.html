@@ -28,25 +28,128 @@
 }
 html,body { height:100%; background:var(--bg); color:var(--text); font-family:var(--sans); overflow:hidden; }
 
-/* ── MOBILE RESPONSIVE ── */
-@media (max-width: 600px) {
-  html, body { overflow: auto; height: auto; min-height: 100%; }
-  .scr { position: relative; min-height: 100vh; }
-  #s-chat { position: fixed; inset: 0; }
-  #s-detail { position: fixed; inset: 0; }
-  .land-title { font-size: 44px; }
-  .land-sub { font-size: 13px; }
-  .radar-wrap { width: 120px; height: 120px; margin-bottom: 20px; }
-  .rcore { font-size: 36px; }
-  .sos-btn { padding: 16px 40px; font-size: 17px; width: 100%; max-width: 320px; }
-  .pills { gap: 6px; }
-  .tech-badge { font-size: 8px; padding: 3px 8px; }
+/* ── MOBILE & ANDROID RESPONSIVE ── */
+@media (max-width: 768px) {
+
+  /* Fix Android viewport and scrolling */
+  html { height: -webkit-fill-available; }
+  body { min-height: -webkit-fill-available; min-height: 100vh; }
+
+  /* Landing screen — scrollable on small phones */
+  #s-land {
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 20px 20px 80px;
+    justify-content: flex-start;
+    padding-top: 40px;
+  }
+
+  /* Radar — smaller */
+  .radar-wrap { width: 110px; height: 110px; margin-bottom: 20px; }
+  .rcore { font-size: 34px; inset: 16px; }
+
+  /* Title */
+  .land-eyebrow { font-size: 8px; letter-spacing: 3px; margin-bottom: 8px; }
+  .land-title { font-size: 42px; margin-bottom: 6px; }
+  .land-sub { font-size: 13px; max-width: 100%; margin-bottom: 22px; padding: 0 8px; }
+
+  /* Tech badges — 2x2 grid on mobile */
+  .pills { gap: 6px; margin-bottom: 24px; }
+  .tech-badge { font-size: 8px; padding: 5px 10px; }
+
+  /* CTA button — full width, bigger tap target */
+  .sos-btn {
+    width: 100%;
+    max-width: 340px;
+    padding: 18px 20px;
+    font-size: 18px;
+    letter-spacing: 2px;
+    clip-path: polygon(10px 0%, 100% 0%, calc(100% - 10px) 100%, 0% 100%);
+    margin-bottom: 14px;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+
+  /* Status bar — hidden on mobile */
   .statusbar { display: none; }
-  .chat-hdr { height: 52px; padding: 0 12px; }
-  .msgs { padding: 12px 10px; }
-  .mbub { font-size: 13px; padding: 10px 12px; }
-  .inp { font-size: 16px; } /* prevent iOS zoom */
-  .mrow { max-width: 92%; }
+
+  /* Chat screen — full viewport */
+  #s-chat { position: fixed; inset: 0; height: 100%; height: -webkit-fill-available; }
+
+  /* Chat header */
+  .chat-hdr { height: 54px; padding: 0 12px; gap: 8px; }
+  .aname { font-size: 14px; }
+  .astatus { font-size: 8px; }
+
+  /* Hide header pills on mobile to save space */
+  .chat-hdr .pill { display: none; }
+
+  /* Progress bar */
+  .prog-bar { height: 32px; padding: 0 12px; }
+  .prog-lbl { display: none; }
+
+  /* Messages */
+  .msgs { padding: 12px 10px; gap: 8px; }
+  .mrow { max-width: 94%; }
+  .mbub { font-size: 14px; padding: 10px 12px; line-height: 1.6; }
+  .mav { width: 24px; height: 24px; font-size: 7px; margin: 0 6px; }
+
+  /* Input bar */
+  .inp-bar { padding: 8px 10px; gap: 7px; }
+
+  /* Mode toggle buttons — bigger tap targets */
+  .mode-btn {
+    padding: 10px 6px;
+    font-size: 10px;
+    min-height: 40px;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+
+  /* Text input — 16px prevents Android zoom */
+  .inp {
+    font-size: 16px;
+    padding: 12px 14px;
+    border-radius: 4px;
+    -webkit-appearance: none;
+  }
+
+  /* Send button — bigger tap target */
+  .send-btn {
+    width: 48px; height: 48px;
+    font-size: 18px;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+
+  /* Mic button — bigger for Android */
+  .mic-btn {
+    width: 72px; height: 72px;
+    font-size: 30px;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+
+  /* Confirmation YES/NO buttons */
+  #confirm-btns button {
+    padding: 12px 24px !important;
+    font-size: 16px !important;
+    min-height: 48px;
+    touch-action: manipulation;
+  }
+
+  /* System messages */
+  .sysmsg { font-size: 8px; text-align: center; padding: 4px 10px; }
+}
+
+/* Extra small — older/smaller Android phones */
+@media (max-width: 380px) {
+  .land-title { font-size: 36px; }
+  .sos-btn { font-size: 16px; padding: 16px; }
+  .mbub { font-size: 13px; }
+  .tech-badge { font-size: 7px; padding: 4px 8px; }
+  .radar-wrap { width: 95px; height: 95px; }
+  .rcore { font-size: 28px; }
 }
 
 body::before {
